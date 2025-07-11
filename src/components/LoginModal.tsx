@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,16 +34,6 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     }
   };
 
-  const getDemoCredentials = () => {
-    if (userType === 'admin') {
-      setEmail('admin@vignanits.ac.in');
-      setPassword('admin123');
-    } else {
-      setEmail('student@vignanits.ac.in');
-      setPassword('student123');
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -51,6 +41,9 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           <DialogTitle className="text-2xl font-bold text-center">
             {userType === 'admin' ? 'Admin' : 'Student'} Login
           </DialogTitle>
+          <DialogDescription className="text-center text-gray-600">
+            Enter your credentials to access the {userType} dashboard
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -103,24 +96,13 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </Button>
-            
-            <Button
-              type="button"
-              variant="outline"
-              onClick={getDemoCredentials}
-              className="w-full"
-            >
-              Use Demo Credentials
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
