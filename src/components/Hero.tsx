@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ const Hero = () => {
   const [, setLocation] = useLocation();
   const [selectedSection, setSelectedSection] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [userType, setUserType] = useState<'student' | 'admin'>('student');
 
   const sections = {
     events: {
@@ -60,6 +60,11 @@ const Hero = () => {
     setSelectedSection(null);
   };
 
+  const handleLoginClick = (type: 'student' | 'admin') => {
+    setUserType(type);
+    setShowLogin(true);
+  };
+
   return (
     <section className="relative py-20 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
       {/* Background Pattern */}
@@ -88,7 +93,7 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
-              onClick={() => setShowLogin(true)}
+              onClick={() => handleLoginClick('student')}
             >
               Student Portal
             </Button>
@@ -96,7 +101,7 @@ const Hero = () => {
               size="lg" 
               variant="outline" 
               className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 text-lg"
-              onClick={() => setShowLogin(true)}
+              onClick={() => handleLoginClick('admin')}
             >
               Admin Portal
             </Button>
@@ -258,7 +263,11 @@ const Hero = () => {
 
       {/* Login Modal */}
       {showLogin && (
-        <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+        <LoginModal 
+          isOpen={showLogin} 
+          onClose={() => setShowLogin(false)} 
+          userType={userType}
+        />
       )}
     </section>
   );
