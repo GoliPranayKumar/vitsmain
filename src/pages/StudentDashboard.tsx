@@ -1,13 +1,17 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, BarChart3, Award, Calendar, LogOut, BookOpen, Clock, TrendingUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { User, BarChart3, Award, Calendar, LogOut, BookOpen, Clock, TrendingUp, Upload, Download, Plus, Eye } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
 
   const studentData = {
     rollNumber: '22CS101',
@@ -21,32 +25,58 @@ const StudentDashboard = () => {
     eventsRegistered: 2
   };
 
-  const attendanceData = [
-    { subject: 'Machine Learning', attendance: '90%' },
-    { subject: 'Data Structures', attendance: '85%' },
-    { subject: 'Database Systems', attendance: '80%' },
-    { subject: 'Web Development', attendance: '88%' },
-  ];
+  const [attendanceData] = useState([
+    { subject: 'Machine Learning', attendance: '90%', total: 45, present: 41, absent: 4 },
+    { subject: 'Data Structures', attendance: '85%', total: 40, present: 34, absent: 6 },
+    { subject: 'Database Systems', attendance: '80%', total: 35, present: 28, absent: 7 },
+    { subject: 'Web Development', attendance: '88%', total: 42, present: 37, absent: 5 },
+  ]);
 
-  const results = [
-    { semester: 'Semester 1', gpa: '8.2', status: 'Completed' },
-    { semester: 'Semester 2', gpa: '8.5', status: 'Completed' },
-    { semester: 'Semester 3', gpa: '8.7', status: 'Completed' },
-    { semester: 'Semester 4', gpa: '8.5', status: 'In Progress' },
-  ];
+  const [results] = useState([
+    { semester: 'Semester 1', gpa: '8.2', status: 'Completed', subjects: 6, downloadUrl: '#' },
+    { semester: 'Semester 2', gpa: '8.5', status: 'Completed', subjects: 6, downloadUrl: '#' },
+    { semester: 'Semester 3', gpa: '8.7', status: 'Completed', subjects: 7, downloadUrl: '#' },
+    { semester: 'Semester 4', gpa: '8.5', status: 'In Progress', subjects: 7, downloadUrl: null },
+  ]);
 
-  const certifications = [
-    { name: 'AWS Cloud Practitioner', issuer: 'Amazon Web Services', date: '2024-06-15' },
-    { name: 'Python for Data Science', issuer: 'Coursera', date: '2024-05-20' },
-    { name: 'Machine Learning Basics', issuer: 'edX', date: '2024-04-10' },
-  ];
+  const [certificates, setCertificates] = useState([
+    { id: 1, name: 'AWS Cloud Practitioner', issuer: 'Amazon Web Services', date: '2024-06-15', fileName: 'aws-cert.pdf' },
+    { id: 2, name: 'Python for Data Science', issuer: 'Coursera', date: '2024-05-20', fileName: 'python-cert.pdf' },
+    { id: 3, name: 'Machine Learning Basics', issuer: 'edX', date: '2024-04-10', fileName: 'ml-cert.pdf' },
+  ]);
 
-  const timetable = [
+  const [timetable] = useState([
     { time: '9:00 AM', monday: 'ML', tuesday: 'DS', wednesday: 'DB', thursday: 'WD', friday: 'Lab' },
     { time: '10:00 AM', monday: 'DS', tuesday: 'ML', wednesday: 'WD', thursday: 'DB', friday: 'Lab' },
     { time: '11:00 AM', monday: 'DB', tuesday: 'WD', wednesday: 'ML', thursday: 'DS', friday: 'Lab' },
     { time: '12:00 PM', monday: 'WD', tuesday: 'DB', wednesday: 'DS', thursday: 'ML', friday: 'Free' },
-  ];
+  ]);
+
+  // Certificate upload function
+  const handleCertificateUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const newCertificate = {
+        id: Date.now(),
+        name: file.name.split('.')[0],
+        issuer: 'Self Uploaded',
+        date: new Date().toISOString().split('T')[0],
+        fileName: file.name
+      };
+      setCertificates(prev => [...prev, newCertificate]);
+      toast({ title: "Certificate uploaded successfully" });
+    }
+  };
+
+  // Certificate download function
+  const downloadCertificate = (certificate) => {
+    toast({ title: `Downloading ${certificate.name}`, description: "Certificate download started" });
+  };
+
+  // Results download function
+  const downloadResult = (result) => {
+    toast({ title: `Downloading ${result.semester} Results`, description: "Result download started" });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,7 +100,6 @@ const StudentDashboard = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Student Profile Card */}
         <Card className="mb-8">
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
@@ -104,7 +133,6 @@ const StudentDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
@@ -135,7 +163,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Certifications</p>
-                  <p className="text-3xl font-bold text-purple-600">{studentData.certifications}</p>
+                  <p className="text-3xl font-bold text-purple-600">{certificates.length}</p>
                 </div>
                 <Award className="w-8 h-8 text-purple-600" />
               </div>
@@ -155,7 +183,6 @@ const StudentDashboard = () => {
           </Card>
         </div>
 
-        {/* Navigation Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile" className="flex items-center space-x-2">
@@ -238,11 +265,39 @@ const StudentDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-2">Overall Attendance</h3>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-3xl font-bold text-blue-600">{studentData.attendance}</div>
+                      <div className="text-sm text-blue-700">
+                        <p>Total Classes: 162</p>
+                        <p>Present: 138</p>
+                        <p>Absent: 24</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="space-y-4">
+                  <h4 className="font-semibold text-gray-900">Subject-wise Attendance</h4>
                   {attendanceData.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-4 border rounded-lg">
-                      <span className="font-medium">{item.subject}</span>
-                      <span className="text-lg font-bold text-blue-600">{item.attendance}</span>
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-medium text-lg">{item.subject}</span>
+                        <span className="text-xl font-bold text-blue-600">{item.attendance}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div>Total: {item.total}</div>
+                        <div className="text-green-600">Present: {item.present}</div>
+                        <div className="text-red-600">Absent: {item.absent}</div>
+                      </div>
+                      <div className="mt-2 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full" 
+                          style={{ width: item.attendance }}
+                        ></div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -265,7 +320,9 @@ const StudentDashboard = () => {
                       <tr className="bg-gray-50">
                         <th className="border border-gray-200 px-4 py-2 text-left">Semester</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">GPA</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Subjects</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -273,6 +330,7 @@ const StudentDashboard = () => {
                         <tr key={index}>
                           <td className="border border-gray-200 px-4 py-2">{result.semester}</td>
                           <td className="border border-gray-200 px-4 py-2 font-bold text-green-600">{result.gpa}</td>
+                          <td className="border border-gray-200 px-4 py-2">{result.subjects}</td>
                           <td className="border border-gray-200 px-4 py-2">
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                               result.status === 'Completed' 
@@ -281,6 +339,14 @@ const StudentDashboard = () => {
                             }`}>
                               {result.status}
                             </span>
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2">
+                            {result.downloadUrl && (
+                              <Button size="sm" variant="outline" onClick={() => downloadResult(result)}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -294,18 +360,52 @@ const StudentDashboard = () => {
           <TabsContent value="certifications">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Award className="w-5 h-5" />
-                  <span>My Certifications</span>
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center space-x-2">
+                    <Award className="w-5 h-5" />
+                    <span>My Certifications</span>
+                  </CardTitle>
+                  <div className="flex space-x-2">
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleCertificateUpload}
+                      className="hidden"
+                      id="certificate-upload"
+                    />
+                    <Label htmlFor="certificate-upload">
+                      <Button asChild>
+                        <span>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Upload Certificate
+                        </span>
+                      </Button>
+                    </Label>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {certifications.map((cert, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-lg">{cert.name}</h3>
-                      <p className="text-gray-600">Issued by: {cert.issuer}</p>
-                      <p className="text-sm text-gray-500">Date: {cert.date}</p>
+                  {certificates.map((cert) => (
+                    <div key={cert.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-lg">{cert.name}</h3>
+                          <p className="text-gray-600">Issued by: {cert.issuer}</p>
+                          <p className="text-sm text-gray-500">Date: {cert.date}</p>
+                          <p className="text-sm text-gray-500">File: {cert.fileName}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                          <Button size="sm" onClick={() => downloadCertificate(cert)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
