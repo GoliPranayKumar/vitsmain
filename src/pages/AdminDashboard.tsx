@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,14 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Calendar, GraduationCap, TrendingUp, LogOut, User, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock } from 'lucide-react';
+import { Users, Calendar, GraduationCap, TrendingUp, LogOut, User, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [stats] = useState({
-    pendingStudents: 1,
+    totalStudents: 3,
     activeEvents: 2,
     facultyMembers: 3,
     placements: 3
@@ -48,6 +49,11 @@ const AdminDashboard = () => {
     { id: 2, time: '10:00 AM', monday: 'DS', tuesday: 'ML', wednesday: 'WD', thursday: 'DB', friday: 'Lab' },
     { id: 3, time: '11:00 AM', monday: 'DB', tuesday: 'WD', wednesday: 'ML', thursday: 'DS', friday: 'Lab' },
     { id: 4, time: '12:00 PM', monday: 'WD', tuesday: 'DB', wednesday: 'DS', thursday: 'ML', friday: 'Free' },
+  ]);
+
+  const [gallery, setGallery] = useState([
+    { id: 1, title: 'Tech Fest 2024', url: '/placeholder.svg', description: 'Annual tech festival' },
+    { id: 2, title: 'AI Workshop', url: '/placeholder.svg', description: 'Machine learning workshop' },
   ]);
 
   const [editingStudent, setEditingStudent] = useState(null);
@@ -137,6 +143,30 @@ const AdminDashboard = () => {
     toast({ title: "Timetable updated successfully" });
   };
 
+  // Gallery Management Functions
+  const addImage = (newImage) => {
+    const image = { ...newImage, id: Date.now() };
+    setGallery(prev => [...prev, image]);
+    toast({ title: "Image added successfully" });
+  };
+
+  const deleteImage = (imageId) => {
+    setGallery(prev => prev.filter(image => image.id !== imageId));
+    toast({ title: "Image deleted successfully" });
+  };
+
+  const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files);
+    files.forEach(file => {
+      const imageUrl = URL.createObjectURL(file);
+      addImage({
+        title: file.name,
+        url: imageUrl,
+        description: 'Uploaded image'
+      });
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
@@ -164,8 +194,8 @@ const AdminDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Students</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.pendingStudents}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Students</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.totalStudents}</p>
                 </div>
                 <Users className="w-8 h-8 text-blue-600" />
               </div>
@@ -210,7 +240,7 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="students" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="students" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
               <span>Students</span>
@@ -230,6 +260,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="attendance" className="flex items-center space-x-2">
               <Clock className="w-4 h-4" />
               <span>Attendance</span>
+            </TabsTrigger>
+            <TabsTrigger value="results" className="flex items-center space-x-2">
+              <FileText className="w-4 h-4" />
+              <span>Results</span>
             </TabsTrigger>
             <TabsTrigger value="timetable" className="flex items-center space-x-2">
               <BarChart3 className="w-4 h-4" />
@@ -485,45 +519,55 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="text-center">
-                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Monthly Attendance</h3>
-                      <p className="text-gray-600 mb-4">Upload Excel sheet with student roll numbers and attendance data</p>
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleAttendanceUpload}
-                        className="hidden"
-                        id="attendance-upload"
-                      />
-                      <Label htmlFor="attendance-upload">
-                        <Button asChild>
-                          <span>Choose File</span>
-                        </Button>
-                      </Label>
-                    </div>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="text-center">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Monthly Attendance</h3>
+                    <p className="text-gray-600 mb-4">Upload Excel sheet with student roll numbers and attendance data</p>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleAttendanceUpload}
+                      className="hidden"
+                      id="attendance-upload"
+                    />
+                    <Label htmlFor="attendance-upload">
+                      <Button asChild>
+                        <span>Choose File</span>
+                      </Button>
+                    </Label>
                   </div>
-                  
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="text-center">
-                      <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Semester Results</h3>
-                      <p className="text-gray-600 mb-4">Upload Excel sheet with student results for each semester</p>
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleResultsUpload}
-                        className="hidden"
-                        id="results-upload"
-                      />
-                      <Label htmlFor="results-upload">
-                        <Button asChild>
-                          <span>Choose File</span>
-                        </Button>
-                      </Label>
-                    </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="results">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5" />
+                  <span>Results Management</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="text-center">
+                    <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Semester Results</h3>
+                    <p className="text-gray-600 mb-4">Upload Excel sheet with student results for each semester</p>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleResultsUpload}
+                      className="hidden"
+                      id="results-upload"
+                    />
+                    <Label htmlFor="results-upload">
+                      <Button asChild>
+                        <span>Choose File</span>
+                      </Button>
+                    </Label>
                   </div>
                 </div>
               </CardContent>
@@ -595,18 +639,51 @@ const AdminDashboard = () => {
                     <Image className="w-5 h-5" />
                     <span>Department Gallery</span>
                   </CardTitle>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Images
-                  </Button>
+                  <div className="flex space-x-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="gallery-upload"
+                    />
+                    <Label htmlFor="gallery-upload">
+                      <Button asChild>
+                        <span>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Images
+                        </span>
+                      </Button>
+                    </Label>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Image className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">No images uploaded yet</p>
-                  <p className="text-gray-400">Upload department photos and media</p>
-                </div>
+                {gallery.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {gallery.map((image) => (
+                      <div key={image.id} className="border rounded-lg p-4">
+                        <img src={image.url} alt={image.title} className="w-full h-48 object-cover rounded-md mb-2" />
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{image.title}</h3>
+                            <p className="text-sm text-gray-600">{image.description}</p>
+                          </div>
+                          <Button size="sm" variant="destructive" onClick={() => deleteImage(image.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Image className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No images uploaded yet</p>
+                    <p className="text-gray-400">Upload department photos and media</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
