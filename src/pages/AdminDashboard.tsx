@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Users, Calendar, GraduationCap, TrendingUp, LogOut, User, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock, FileText } from 'lucide-react';
+import { Users, Calendar, GraduationCap, TrendingUp, LogOut, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const AdminDashboard = () => {
@@ -24,7 +23,7 @@ const AdminDashboard = () => {
   const [students, setStudents] = useState([
     { id: 1, name: 'John Doe', rollNumber: '22CS101', year: '2nd Year', section: 'A', status: 'approved', email: 'john@example.com', phone: '9876543210' },
     { id: 2, name: 'Jane Smith', rollNumber: '22CS102', year: '2nd Year', section: 'A', status: 'approved', email: 'jane@example.com', phone: '9876543211' },
-    { id: 3, name: 'Mike Johnson', rollNumber: '22CS103', year: '2nd Year', section: 'B', status: 'pending', email: 'mike@example.com', phone: '9876543212' },
+    { id: 3, name: 'Mike Johnson', rollNumber: '22CS103', year: '2nd Year', section: 'B', status: 'approved', email: 'mike@example.com', phone: '9876543212' },
   ]);
 
   const [events, setEvents] = useState([
@@ -120,7 +119,7 @@ const AdminDashboard = () => {
 
   // Attendance Upload Function
   const handleAttendanceUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (file) {
       toast({ title: "Attendance sheet uploaded successfully", description: "Data will be processed and reflected in student profiles." });
     }
@@ -128,7 +127,7 @@ const AdminDashboard = () => {
 
   // Results Upload Function
   const handleResultsUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (file) {
       toast({ title: "Results uploaded successfully", description: "Semester results will be available in student dashboards." });
     }
@@ -155,16 +154,18 @@ const AdminDashboard = () => {
     toast({ title: "Image deleted successfully" });
   };
 
-  const handleImageUpload = (event) => {
-    const files = Array.from(event.target.files);
-    files.forEach(file => {
-      const imageUrl = URL.createObjectURL(file);
-      addImage({
-        title: file.name,
-        url: imageUrl,
-        description: 'Uploaded image'
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      Array.from(files).forEach((file: File) => {
+        const imageUrl = URL.createObjectURL(file);
+        addImage({
+          title: file.name,
+          url: imageUrl,
+          description: 'Uploaded image'
+        });
       });
-    });
+    }
   };
 
   return (
