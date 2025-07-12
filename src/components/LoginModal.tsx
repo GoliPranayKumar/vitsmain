@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginModalProps {
@@ -18,35 +18,69 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState('');
+  const { login, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
     try {
-      await login(email, password, userType);
-      onClose();
-    } catch (error) {
-      console.error('Login failed:', error);
+      if (isSignUp) {
+        const result = await signUp(email, password, userType);
+        if (result.error) {
+          setError(result.error.message);
+        } else {
+          onClose();
+        }
+      } else {
+        await login(email, password, userType);
+        onClose();
+      }
+    } catch (error: any) {
+      console.error('Authentication failed:', error);
+      setError(error.message || 'Authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setError('');
+    setIsSignUp(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
-            {userType === 'admin' ? 'Admin' : 'Student'} Login
+            {isSignUp ? 'Create Account' : `${userType === 'admin' ? 'Admin' : 'Student'} Login`}
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600">
-            Enter your credentials to access the {userType} dashboard
+            {isSignUp 
+              ? `Create a new ${userType} account` 
+              : `Enter your credentials to access the ${userType} dashboard`
+            }
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div>
               <Label htmlFor="email" className="text-sm font-medium">
@@ -96,13 +130,26 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
+          <div className="space-y-3">
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (isSignUp ? 'Creating Account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign In')}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
+              >
+                <UserPlus className="w-4 h-4" />
+                {isSignUp ? 'Already have an account? Sign In' : 'New user? Create Profile'}
+              </button>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

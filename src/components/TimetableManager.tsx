@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddSlotModal from './AddSlotModal';
 
 const TimetableManager = () => {
   const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState('1');
   const [editingSlot, setEditingSlot] = useState(null);
   const [showAddSlot, setShowAddSlot] = useState(false);
+  const [selectedDay, setSelectedDay] = useState('Monday');
 
   const timeSlots = [
     '9:00-10:00 AM',
@@ -96,6 +99,38 @@ const TimetableManager = () => {
     toast({ title: "Time slot cleared" });
   };
 
+  const handleAddSlot = (slotData) => {
+    const { year, day, startTime, endTime, subject } = slotData;
+    const timeSlot = `${startTime}-${endTime}`;
+    
+    // Convert 24-hour format to 12-hour format for display
+    const formatTime = (time) => {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+    
+    const formattedTimeSlot = `${formatTime(startTime)}-${formatTime(endTime)}`;
+    
+    setTimetableData(prev => ({
+      ...prev,
+      [year]: {
+        ...prev[year],
+        [day]: {
+          ...prev[year]?.[day],
+          [formattedTimeSlot]: subject
+        }
+      }
+    }));
+    
+    toast({ 
+      title: "New time slot added successfully",
+      description: `${subject} added to ${day} at ${formattedTimeSlot}`
+    });
+  };
+
   const SlotEditModal = ({ slot, onSave, onClose }) => {
     const [subject, setSubject] = useState(slot?.subject || '');
 
@@ -138,20 +173,30 @@ const TimetableManager = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Timetable Management</h2>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">Year 1</SelectItem>
-            <SelectItem value="2">Year 2</SelectItem>
-            <SelectItem value="3">Year 3</SelectItem>
-            <SelectItem value="4">Year 4</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Year 1</SelectItem>
+              <SelectItem value="2">Year 2</SelectItem>
+              <SelectItem value="3">Year 3</SelectItem>
+              <SelectItem value="4">Year 4</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button 
+            onClick={() => setShowAddSlot(true)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Slot
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="Monday" className="w-full">
+      <Tabs defaultValue="Monday" className="w-full" onValueChange={setSelectedDay}>
         <TabsList className="grid w-full grid-cols-6">
           {days.map(day => (
             <TabsTrigger key={day} value={day}>{day}</TabsTrigger>
@@ -162,7 +207,17 @@ const TimetableManager = () => {
           <TabsContent key={day} value={day}>
             <Card>
               <CardHeader>
-                <CardTitle>{day} - Year {selectedYear}</CardTitle>
+                <CardTitle className="flex justify-between items-center">
+                  <span>{day} - Year {selectedYear}</span>
+                  <Button 
+                    size="sm"
+                    onClick={() => setShowAddSlot(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to {day}
+                  </Button>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -211,6 +266,14 @@ const TimetableManager = () => {
         slot={editingSlot}
         onSave={updateTimetableSlot}
         onClose={() => setEditingSlot(null)}
+      />
+
+      <AddSlotModal
+        isOpen={showAddSlot}
+        onClose={() => setShowAddSlot(false)}
+        onSave={handleAddSlot}
+        selectedDay={selectedDay}
+        selectedYear={selectedYear}
       />
     </div>
   );
