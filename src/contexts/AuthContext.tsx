@@ -45,13 +45,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User logged in, loading profile...');
-          await loadUserProfile(session.user.id);
+          setTimeout(() => {
+            loadUserProfile(session.user.id);
+          }, 0);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
           setNeedsProfileCreation(false);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -71,7 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const loadUserProfile = async (userId: string) => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     console.log('Loading profile for user:', userId);
 
@@ -82,45 +87,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
-      if (error || !data) {
-        console.log('No profile found, checking user metadata');
-        
-        // Check if this is an admin user from metadata
-        const { data: userData } = await supabase.auth.getUser();
-        const roleFromMeta = userData.user?.user_metadata?.role;
-        
-        console.log('User metadata role:', roleFromMeta);
+      if (error) {
+        console.error('Error loading profile:', error);
+        setUserProfile(null);
+        setNeedsProfileCreation(true);
+        setLoading(false);
+        return;
+      }
 
-        if (roleFromMeta === 'admin') {
-          console.log('Admin user detected, redirecting to admin dashboard');
-          setUserProfile({ role: 'admin', id: userId });
-          setNeedsProfileCreation(false);
-          setTimeout(() => setLocation('/admin-dashboard'), 100);
-        } else {
-          console.log('Student user needs profile creation');
-          setUserProfile(null);
-          setNeedsProfileCreation(true);
-        }
-      } else {
+      if (data) {
         console.log('Profile loaded:', data);
         setUserProfile(data);
         setNeedsProfileCreation(false);
         
         // Redirect based on role and status
         if (data.role === 'admin') {
-          console.log('Redirecting to admin dashboard');
+          console.log('Admin user detected, redirecting to admin dashboard');
           setTimeout(() => setLocation('/admin-dashboard'), 100);
         } else if (data.role === 'student' && data.status === 'approved') {
-          console.log('Redirecting to student dashboard');
+          console.log('Approved student, redirecting to student dashboard');
           setTimeout(() => setLocation('/student-dashboard'), 100);
         } else if (data.role === 'student' && data.status === 'pending') {
           console.log('Student pending approval, staying on main page');
           // Student stays on main page
         }
+      } else {
+        console.log('No profile found, needs creation');
+        setUserProfile(null);
+        setNeedsProfileCreation(true);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+      setUserProfile(null);
       setNeedsProfileCreation(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -174,50 +175,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Signup successful:', data);
 
-      if (data.user && userType === 'student') {
-        // Create initial profile for student
+      if (data.user) {
+        // Create initial profile
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert({
             id: data.user.id,
             role: userType,
-            status: 'pending',
+            status: userType === 'admin' ? 'approved' : 'pending',
+            student_name: data.user.email?.split('@')[0] || 'User',
           });
 
         if (insertError) {
-          console.error('Error inserting student profile:', insertError);
+          console.error('Error inserting profile:', insertError);
         } else {
-          console.log('Student profile created successfully');
+          console.log('Profile created successfully');
         }
 
         toast({
           title: 'Account created',
-          description: 'Please complete your profile. Awaiting admin approval.',
+          description: userType === 'admin' 
+            ? 'Admin account created successfully!' 
+            : 'Please complete your profile. Awaiting admin approval.',
         });
 
-        setNeedsProfileCreation(true);
-      } else if (data.user && userType === 'admin') {
-        // For admin, create profile with admin role
-        const { error: insertError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            role: userType,
-            status: 'approved', // Admins are auto-approved
-          });
-
-        if (insertError) {
-          console.error('Error inserting admin profile:', insertError);
-        } else {
-          console.log('Admin profile created successfully');
+        if (userType === 'student') {
+          setNeedsProfileCreation(true);
         }
-
-        toast({
-          title: 'Admin account created',
-          description: 'You can now access the admin dashboard.',
-        });
-        
-        setNeedsProfileCreation(false);
       }
 
       return { error: null };
