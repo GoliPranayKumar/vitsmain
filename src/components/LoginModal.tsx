@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -34,16 +35,20 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
 
     try {
       if (isSignUp) {
+        console.log('Attempting signup for:', email, userType);
         const result = await signUp(email, password, userType);
         if (result.error) {
           setError(result.error.message);
           return;
         }
       } else {
+        console.log('Attempting login for:', email, userType);
         await login(email, password, userType);
       }
 
-      onClose(); // Close modal on success
+      // Reset form and close modal on success
+      resetForm();
+      onClose();
     } catch (error: any) {
       console.error('Authentication failed:', error);
       setError(error.message || 'Authentication failed. Please try again.');
@@ -57,6 +62,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     setPassword('');
     setError('');
     setIsSignUp(false);
+    setShowPassword(false);
   };
 
   const handleClose = () => {
@@ -150,11 +156,14 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError('');
+                }}
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
               >
                 <UserPlus className="w-4 h-4" />
-                {isSignUp ? 'Already have an account? Sign In' : 'New user? Create Profile'}
+                {isSignUp ? 'Already have an account? Sign In' : 'New user? Create Account'}
               </button>
             </div>
           </div>

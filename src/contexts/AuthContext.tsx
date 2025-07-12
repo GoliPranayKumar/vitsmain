@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
 interface AuthContextType {
   user: User | null;
@@ -30,12 +32,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
           await loadUserProfile(session.user.id);
         } else {
@@ -47,10 +52,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) loadUserProfile(session.user.id);
-      setLoading(false);
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -59,37 +68,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUserProfile = async (userId: string) => {
     if (!userId) return;
 
-    const { data, error } = await supabase
+    console.log('Loading profile for user:', userId);
+
+    const { data, error } = await (supabase as any)
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
     if (error || !data) {
-      // Admins may not have user_profiles row
+      console.log('No profile found, checking user metadata');
+      // Check if this is an admin user
       const { data: userData } = await supabase.auth.getUser();
       const roleFromMeta = userData.user?.user_metadata?.role;
 
       if (roleFromMeta === 'admin') {
+        console.log('Admin user detected');
         setUserProfile({ role: 'admin' });
         setNeedsProfileCreation(false);
+        // Redirect admin to dashboard
+        setTimeout(() => setLocation('/admin-dashboard'), 100);
       } else {
+        console.log('Student user needs profile creation');
         setUserProfile(null);
         setNeedsProfileCreation(true);
       }
     } else {
+      console.log('Profile loaded:', data);
       setUserProfile(data);
       setNeedsProfileCreation(false);
+      
+      // Redirect based on role and status
+      if (data.role === 'admin') {
+        setTimeout(() => setLocation('/admin-dashboard'), 100);
+      } else if (data.role === 'student' && data.status === 'approved') {
+        setTimeout(() => setLocation('/student-dashboard'), 100);
+      }
+      // If student is pending, they stay on main page with profile creation modal
     }
   };
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
+    console.log('Attempting login for:', email, userType);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
 
     if (data.user) {
+      console.log('Login successful for:', data.user.email);
       toast({ title: 'Login successful', description: 'Welcome back!' });
-      await loadUserProfile(data.user.id);
+      // Profile loading and redirection will happen in the auth state change handler
     }
   };
 
@@ -108,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) return { error };
 
     if (data.user && userType === 'student') {
-      const { error: insertError } = await supabase.from('user_profiles').insert({
+      const { error: insertError } = await (supabase as any).from('user_profiles').insert({
         id: data.user.id,
         role: userType,
         status: 'pending',
@@ -124,12 +154,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setNeedsProfileCreation(true);
-    } else {
+    } else if (data.user && userType === 'admin') {
       toast({
         title: 'Admin account created',
         description: 'You can now access the admin dashboard.',
       });
       setNeedsProfileCreation(false);
+      // Admin will be redirected by the auth state change handler
     }
 
     return { error: null };
@@ -138,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createProfile = async (profileData: any) => {
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('user_profiles')
       .update({
         ...profileData,
@@ -163,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setUserProfile(null);
     setNeedsProfileCreation(false);
+    setLocation('/');
 
     toast({
       title: 'Logged out',
