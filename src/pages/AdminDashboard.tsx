@@ -17,16 +17,16 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   
   // State for real-time data
-  const [pendingStudents, setPendingStudents] = useState([]);
+  const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeEvents: 0,
     facultyMembers: 0,
     placements: 0
   });
-  const [events, setEvents] = useState([]);
-  const [faculty, setFaculty] = useState([]);
-  const [placements, setPlacements] = useState([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [faculty, setFaculty] = useState<any[]>([]);
+  const [placements, setPlacements] = useState<any[]>([]);
   const [gallery, setGallery] = useState([
     { id: 1, title: 'Tech Fest 2024', url: '/placeholder.svg', description: 'Annual tech festival' },
     { id: 2, title: 'AI Workshop', url: '/placeholder.svg', description: 'Machine learning workshop' },
@@ -134,7 +134,7 @@ const AdminDashboard = () => {
   };
 
   // Student Management Functions
-  const approveStudent = async (studentId) => {
+  const approveStudent = async (studentId: string) => {
     const { error } = await supabase
       .from('user_profiles')
       .update({ status: 'approved' })
@@ -145,7 +145,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const rejectStudent = async (studentId) => {
+  const rejectStudent = async (studentId: string) => {
     const { error } = await supabase
       .from('user_profiles')
       .update({ status: 'rejected' })
@@ -157,7 +157,7 @@ const AdminDashboard = () => {
   };
 
   // Event Management Functions
-  const addEvent = async (newEvent) => {
+  const addEvent = async (newEvent: any) => {
     const { error } = await supabase
       .from('department_events')
       .insert(newEvent);
@@ -167,7 +167,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const deleteEvent = async (eventId) => {
+  const deleteEvent = async (eventId: string) => {
     const { error } = await supabase
       .from('department_events')
       .delete()
@@ -179,7 +179,7 @@ const AdminDashboard = () => {
   };
 
   // Faculty Management Functions
-  const addFaculty = async (newFaculty) => {
+  const addFaculty = async (newFaculty: any) => {
     const { error } = await supabase
       .from('faculty_members')
       .insert(newFaculty);
@@ -189,7 +189,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const deleteFaculty = async (facultyId) => {
+  const deleteFaculty = async (facultyId: string) => {
     const { error } = await supabase
       .from('faculty_members')
       .delete()
@@ -201,7 +201,7 @@ const AdminDashboard = () => {
   };
 
   // Placement Management Functions
-  const addPlacement = async (newPlacement) => {
+  const addPlacement = async (newPlacement: any) => {
     const { error } = await supabase
       .from('placement_records')
       .insert(newPlacement);
@@ -211,7 +211,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const deletePlacement = async (placementId) => {
+  const deletePlacement = async (placementId: string) => {
     const { error } = await supabase
       .from('placement_records')
       .delete()
@@ -223,14 +223,14 @@ const AdminDashboard = () => {
   };
 
   // File upload handlers
-  const handleAttendanceUpload = (event) => {
+  const handleAttendanceUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       toast({ title: "Attendance sheet uploaded successfully", description: "Data will be processed and reflected in student profiles." });
     }
   };
 
-  const handleResultsUpload = (event) => {
+  const handleResultsUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       toast({ title: "Results uploaded successfully", description: "Semester results will be available in student dashboards." });
@@ -238,13 +238,13 @@ const AdminDashboard = () => {
   };
 
   // Gallery Management Functions
-  const addImage = (newImage) => {
+  const addImage = (newImage: any) => {
     const image = { ...newImage, id: Date.now() };
     setGallery(prev => [...prev, image]);
     toast({ title: "Image added successfully" });
   };
 
-  const deleteImage = (imageId) => {
+  const deleteImage = (imageId: number) => {
     setGallery(prev => prev.filter(image => image.id !== imageId));
     toast({ title: "Image deleted successfully" });
   };
@@ -724,7 +724,7 @@ const AdminDashboard = () => {
 };
 
 // Form Components
-const EventForm = ({ onSave }) => {
+const EventForm = ({ onSave }: { onSave: (data: any) => void }) => {
   const [formData, setFormData] = useState({ 
     title: '', 
     description: '', 
@@ -734,7 +734,7 @@ const EventForm = ({ onSave }) => {
     speaker: '' 
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
     setFormData({ title: '', description: '', date: '', time: '', venue: '', speaker: '' });
@@ -771,7 +771,7 @@ const EventForm = ({ onSave }) => {
   );
 };
 
-const FacultyForm = ({ onSave }) => {
+const FacultyForm = ({ onSave }: { onSave: (data: any) => void }) => {
   const [formData, setFormData] = useState({ 
     name: '', 
     designation: '', 
@@ -780,7 +780,7 @@ const FacultyForm = ({ onSave }) => {
     publications: '' 
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
     setFormData({ name: '', designation: '', bio: '', expertise: '', publications: '' });
@@ -813,7 +813,7 @@ const FacultyForm = ({ onSave }) => {
   );
 };
 
-const PlacementForm = ({ onSave }) => {
+const PlacementForm = ({ onSave }: { onSave: (data: any) => void }) => {
   const [formData, setFormData] = useState({ 
     student_name: '', 
     company: '', 
@@ -823,7 +823,7 @@ const PlacementForm = ({ onSave }) => {
     branch: 'AI & Data Science' 
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       ...formData,

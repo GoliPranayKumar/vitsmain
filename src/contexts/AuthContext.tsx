@@ -95,11 +95,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: profile.id,
           email: authUser.email || '',
           role: profile.role as 'admin' | 'student',
-          name: profile.student_name || profile.role === 'admin' ? 'Admin User' : 'Student',
-          htno: profile.htno,
-          student_name: profile.student_name,
-          year: profile.year,
-          status: profile.status
+          name: profile.student_name || (profile.role === 'admin' ? 'Admin User' : 'Student'),
+          htno: profile.htno || undefined,
+          student_name: profile.student_name || undefined,
+          year: profile.year || undefined,
+          status: profile.status as 'pending' | 'approved' | 'rejected' | undefined
         });
 
         // Redirect based on role and status

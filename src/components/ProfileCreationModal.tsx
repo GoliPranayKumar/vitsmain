@@ -60,7 +60,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
 
   return (
     <Dialog open={open}>
-      <DialogContent className="sm:max-w-md" hideClose>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create Your Profile</DialogTitle>
         </DialogHeader>
