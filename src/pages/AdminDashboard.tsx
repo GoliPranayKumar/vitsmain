@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,108 +9,220 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Users, Calendar, GraduationCap, TrendingUp, LogOut, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import TimetableManager from '@/components/TimetableManager';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
-  const [stats] = useState({
-    totalStudents: 3,
-    activeEvents: 2,
-    facultyMembers: 3,
-    placements: 3
+  
+  // State for real-time data
+  const [pendingStudents, setPendingStudents] = useState([]);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeEvents: 0,
+    facultyMembers: 0,
+    placements: 0
   });
-
-  const [students, setStudents] = useState([
-    { id: 1, name: 'John Doe', rollNumber: '22CS101', year: '2nd Year', section: 'A', status: 'approved', email: 'john@example.com', phone: '9876543210' },
-    { id: 2, name: 'Jane Smith', rollNumber: '22CS102', year: '2nd Year', section: 'A', status: 'approved', email: 'jane@example.com', phone: '9876543211' },
-    { id: 3, name: 'Mike Johnson', rollNumber: '22CS103', year: '2nd Year', section: 'B', status: 'approved', email: 'mike@example.com', phone: '9876543212' },
-  ]);
-
-  const [events, setEvents] = useState([
-    { id: 1, title: 'Machine Learning Workshop', date: '2025-07-15', status: 'upcoming', registrations: 25, description: 'Hands-on ML workshop' },
-    { id: 2, title: 'AI Conference 2025', date: '2025-07-20', status: 'active', registrations: 45, description: 'Annual AI conference' },
-  ]);
-
-  const [faculty, setFaculty] = useState([
-    { id: 1, name: 'Dr. Sarah Wilson', department: 'AI & Data Science', specialization: 'Machine Learning', email: 'sarah@vignanits.ac.in' },
-    { id: 2, name: 'Prof. David Brown', department: 'AI & Data Science', specialization: 'Deep Learning', email: 'david@vignanits.ac.in' },
-    { id: 3, name: 'Dr. Emily Davis', department: 'AI & Data Science', specialization: 'Data Analytics', email: 'emily@vignanits.ac.in' },
-  ]);
-
-  const [placements, setPlacements] = useState([
-    { id: 1, student: 'Alice Cooper', company: 'Google', package: '25 LPA', year: '2024', rollNumber: '21CS101' },
-    { id: 2, student: 'Bob Martin', company: 'Microsoft', package: '22 LPA', year: '2024', rollNumber: '21CS102' },
-    { id: 3, student: 'Carol White', company: 'Amazon', package: '28 LPA', year: '2024', rollNumber: '21CS103' },
-  ]);
-
+  const [events, setEvents] = useState([]);
+  const [faculty, setFaculty] = useState([]);
+  const [placements, setPlacements] = useState([]);
   const [gallery, setGallery] = useState([
     { id: 1, title: 'Tech Fest 2024', url: '/placeholder.svg', description: 'Annual tech festival' },
     { id: 2, title: 'AI Workshop', url: '/placeholder.svg', description: 'Machine learning workshop' },
   ]);
 
-  const [editingStudent, setEditingStudent] = useState(null);
+  // Load data from Supabase
+  useEffect(() => {
+    loadPendingStudents();
+    loadEvents();
+    loadFaculty();
+    loadPlacements();
+    loadStats();
+    
+    // Set up real-time subscriptions
+    const studentsChannel = supabase
+      .channel('pending-students')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
+        loadPendingStudents();
+        loadStats();
+      })
+      .subscribe();
+
+    const eventsChannel = supabase
+      .channel('events-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'department_events' }, loadEvents)
+      .subscribe();
+
+    const facultyChannel = supabase
+      .channel('faculty-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty_members' }, loadFaculty)
+      .subscribe();
+
+    const placementsChannel = supabase
+      .channel('placements-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'placement_records' }, loadPlacements)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(studentsChannel);
+      supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(facultyChannel);
+      supabase.removeChannel(placementsChannel);
+    };
+  }, []);
+
+  const loadPendingStudents = async () => {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('status', 'pending')
+      .eq('role', 'student');
+    
+    if (!error && data) {
+      setPendingStudents(data);
+    }
+  };
+
+  const loadStats = async () => {
+    const [studentsRes, eventsRes, facultyRes, placementsRes] = await Promise.all([
+      supabase.from('user_profiles').select('id', { count: 'exact' }).eq('role', 'student'),
+      supabase.from('department_events').select('id', { count: 'exact' }),
+      supabase.from('faculty_members').select('id', { count: 'exact' }),
+      supabase.from('placement_records').select('id', { count: 'exact' })
+    ]);
+
+    setStats({
+      totalStudents: studentsRes.count || 0,
+      activeEvents: eventsRes.count || 0,
+      facultyMembers: facultyRes.count || 0,
+      placements: placementsRes.count || 0
+    });
+  };
+
+  const loadEvents = async () => {
+    const { data, error } = await supabase
+      .from('department_events')
+      .select('*')
+      .order('date', { ascending: false });
+    
+    if (!error && data) {
+      setEvents(data);
+    }
+  };
+
+  const loadFaculty = async () => {
+    const { data, error } = await supabase
+      .from('faculty_members')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setFaculty(data);
+    }
+  };
+
+  const loadPlacements = async () => {
+    const { data, error } = await supabase
+      .from('placement_records')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setPlacements(data);
+    }
+  };
 
   // Student Management Functions
-  const approveStudent = (studentId) => {
-    setStudents(prev => prev.map(student => 
-      student.id === studentId ? { ...student, status: 'approved' } : student
-    ));
-    toast({ title: "Student approved successfully" });
+  const approveStudent = async (studentId) => {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ status: 'approved' })
+      .eq('id', studentId);
+    
+    if (!error) {
+      toast({ title: "Student approved successfully" });
+    }
   };
 
-  const rejectStudent = (studentId) => {
-    setStudents(prev => prev.map(student => 
-      student.id === studentId ? { ...student, status: 'rejected' } : student
-    ));
-    toast({ title: "Student rejected" });
-  };
-
-  const updateStudent = (updatedStudent) => {
-    setStudents(prev => prev.map(student => 
-      student.id === updatedStudent.id ? updatedStudent : student
-    ));
-    setEditingStudent(null);
-    toast({ title: "Student details updated successfully" });
+  const rejectStudent = async (studentId) => {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ status: 'rejected' })
+      .eq('id', studentId);
+    
+    if (!error) {
+      toast({ title: "Student rejected" });
+    }
   };
 
   // Event Management Functions
-  const addEvent = (newEvent) => {
-    const event = { ...newEvent, id: Date.now(), registrations: 0 };
-    setEvents(prev => [...prev, event]);
-    toast({ title: "Event added successfully" });
+  const addEvent = async (newEvent) => {
+    const { error } = await supabase
+      .from('department_events')
+      .insert(newEvent);
+    
+    if (!error) {
+      toast({ title: "Event added successfully" });
+    }
   };
 
-  const deleteEvent = (eventId) => {
-    setEvents(prev => prev.filter(event => event.id !== eventId));
-    toast({ title: "Event deleted successfully" });
+  const deleteEvent = async (eventId) => {
+    const { error } = await supabase
+      .from('department_events')
+      .delete()
+      .eq('id', eventId);
+    
+    if (!error) {
+      toast({ title: "Event deleted successfully" });
+    }
   };
 
   // Faculty Management Functions
-  const addFaculty = (newFaculty) => {
-    const faculty_member = { ...newFaculty, id: Date.now() };
-    setFaculty(prev => [...prev, faculty_member]);
-    toast({ title: "Faculty member added successfully" });
+  const addFaculty = async (newFaculty) => {
+    const { error } = await supabase
+      .from('faculty_members')
+      .insert(newFaculty);
+    
+    if (!error) {
+      toast({ title: "Faculty member added successfully" });
+    }
   };
 
-  const deleteFaculty = (facultyId) => {
-    setFaculty(prev => prev.filter(member => member.id !== facultyId));
-    toast({ title: "Faculty member removed successfully" });
+  const deleteFaculty = async (facultyId) => {
+    const { error } = await supabase
+      .from('faculty_members')
+      .delete()
+      .eq('id', facultyId);
+    
+    if (!error) {
+      toast({ title: "Faculty member removed successfully" });
+    }
   };
 
   // Placement Management Functions
-  const addPlacement = (newPlacement) => {
-    const placement = { ...newPlacement, id: Date.now() };
-    setPlacements(prev => [...prev, placement]);
-    toast({ title: "Placement record added successfully" });
+  const addPlacement = async (newPlacement) => {
+    const { error } = await supabase
+      .from('placement_records')
+      .insert(newPlacement);
+    
+    if (!error) {
+      toast({ title: "Placement record added successfully" });
+    }
   };
 
-  const deletePlacement = (placementId) => {
-    setPlacements(prev => prev.filter(placement => placement.id !== placementId));
-    toast({ title: "Placement record deleted successfully" });
+  const deletePlacement = async (placementId) => {
+    const { error } = await supabase
+      .from('placement_records')
+      .delete()
+      .eq('id', placementId);
+    
+    if (!error) {
+      toast({ title: "Placement record deleted successfully" });
+    }
   };
 
-  // Attendance Upload Function
+  // File upload handlers
   const handleAttendanceUpload = (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -118,7 +230,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Results Upload Function
   const handleResultsUpload = (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -265,72 +376,54 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Users className="w-5 h-5" />
-                  <span>Student Management</span>
+                  <span>Student Management - Pending Approvals</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-200 px-4 py-2 text-left">Name</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Roll Number</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Year & Section</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((student) => (
-                        <tr key={student.id}>
-                          <td className="border border-gray-200 px-4 py-2">{student.name}</td>
-                          <td className="border border-gray-200 px-4 py-2">{student.rollNumber}</td>
-                          <td className="border border-gray-200 px-4 py-2">{student.year} - {student.section}</td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              student.status === 'approved' 
-                                ? 'bg-green-100 text-green-800' 
-                                : student.status === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {student.status}
-                            </span>
-                          </td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <div className="flex space-x-2">
-                              {student.status === 'pending' && (
-                                <>
-                                  <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                  <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button size="sm" variant="outline" onClick={() => setEditingStudent(student)}>
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Edit Student Details</DialogTitle>
-                                  </DialogHeader>
-                                  {editingStudent && (
-                                    <StudentEditForm student={editingStudent} onSave={updateStudent} />
-                                  )}
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          </td>
+                {pendingStudents.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {pendingStudents.map((student) => (
+                          <tr key={student.id}>
+                            <td className="border border-gray-200 px-4 py-2">{student.htno}</td>
+                            <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
+                            <td className="border border-gray-200 px-4 py-2">{student.year}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                {student.status}
+                              </span>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div className="flex space-x-2">
+                                <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No pending student approvals</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -367,21 +460,14 @@ const AdminDashboard = () => {
                         <div>
                           <h3 className="font-semibold text-lg">{event.title}</h3>
                           <p className="text-gray-600">Date: {event.date}</p>
-                          <p className="text-gray-600">Registrations: {event.registrations}</p>
+                          <p className="text-gray-600">Time: {event.time}</p>
+                          <p className="text-gray-600">Venue: {event.venue}</p>
+                          {event.speaker && <p className="text-gray-600">Speaker: {event.speaker}</p>}
                           <p className="text-gray-600">{event.description}</p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            event.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {event.status}
-                          </span>
-                          <Button size="sm" variant="destructive" onClick={() => deleteEvent(event.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button size="sm" variant="destructive" onClick={() => deleteEvent(event.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -421,9 +507,9 @@ const AdminDashboard = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-semibold text-lg">{member.name}</h3>
-                          <p className="text-gray-600">{member.department}</p>
-                          <p className="text-sm text-gray-500">{member.specialization}</p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <p className="text-gray-600">{member.designation}</p>
+                          {member.expertise && <p className="text-sm text-gray-500">Expertise: {member.expertise}</p>}
+                          {member.bio && <p className="text-sm text-gray-500 mt-2">{member.bio}</p>}
                         </div>
                         <Button size="sm" variant="destructive" onClick={() => deleteFaculty(member.id)}>
                           <Trash2 className="w-4 h-4" />
@@ -466,9 +552,9 @@ const AdminDashboard = () => {
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="border border-gray-200 px-4 py-2 text-left">Student</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Roll Number</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">Company</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Package</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">CTC</th>
+                        <th className="border border-gray-200 px-4 py-2 text-left">Type</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
                         <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
                       </tr>
@@ -476,10 +562,12 @@ const AdminDashboard = () => {
                     <tbody>
                       {placements.map((placement) => (
                         <tr key={placement.id}>
-                          <td className="border border-gray-200 px-4 py-2">{placement.student}</td>
-                          <td className="border border-gray-200 px-4 py-2">{placement.rollNumber}</td>
+                          <td className="border border-gray-200 px-4 py-2">{placement.student_name}</td>
                           <td className="border border-gray-200 px-4 py-2">{placement.company}</td>
-                          <td className="border border-gray-200 px-4 py-2 font-semibold text-green-600">{placement.package}</td>
+                          <td className="border border-gray-200 px-4 py-2 font-semibold text-green-600">
+                            {placement.ctc ? `${placement.ctc} LPA` : 'N/A'}
+                          </td>
+                          <td className="border border-gray-200 px-4 py-2">{placement.type}</td>
                           <td className="border border-gray-200 px-4 py-2">{placement.year}</td>
                           <td className="border border-gray-200 px-4 py-2">
                             <Button size="sm" variant="destructive" onClick={() => deletePlacement(placement.id)}>
@@ -636,48 +724,20 @@ const AdminDashboard = () => {
 };
 
 // Form Components
-const StudentEditForm = ({ student, onSave }) => {
-  const [formData, setFormData] = useState(student);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="year">Year</Label>
-        <Input id="year" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="section">Section</Label>
-        <Input id="section" value={formData.section} onChange={(e) => setFormData({...formData, section: e.target.value})} />
-      </div>
-      <Button type="submit">Save Changes</Button>
-    </form>
-  );
-};
-
 const EventForm = ({ onSave }) => {
-  const [formData, setFormData] = useState({ title: '', date: '', status: 'upcoming', description: '' });
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    description: '', 
+    date: '', 
+    time: '', 
+    venue: '', 
+    speaker: '' 
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
-    setFormData({ title: '', date: '', status: 'upcoming', description: '' });
+    setFormData({ title: '', description: '', date: '', time: '', venue: '', speaker: '' });
   };
 
   return (
@@ -691,6 +751,18 @@ const EventForm = ({ onSave }) => {
         <Input id="date" type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
       </div>
       <div>
+        <Label htmlFor="time">Time</Label>
+        <Input id="time" type="time" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="venue">Venue</Label>
+        <Input id="venue" value={formData.venue} onChange={(e) => setFormData({...formData, venue: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="speaker">Speaker</Label>
+        <Input id="speaker" value={formData.speaker} onChange={(e) => setFormData({...formData, speaker: e.target.value})} />
+      </div>
+      <div>
         <Label htmlFor="description">Description</Label>
         <Textarea id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
       </div>
@@ -700,12 +772,18 @@ const EventForm = ({ onSave }) => {
 };
 
 const FacultyForm = ({ onSave }) => {
-  const [formData, setFormData] = useState({ name: '', department: 'AI & Data Science', specialization: '', email: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    designation: '', 
+    bio: '', 
+    expertise: '', 
+    publications: '' 
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
-    setFormData({ name: '', department: 'AI & Data Science', specialization: '', email: '' });
+    setFormData({ name: '', designation: '', bio: '', expertise: '', publications: '' });
   };
 
   return (
@@ -715,12 +793,20 @@ const FacultyForm = ({ onSave }) => {
         <Input id="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
       </div>
       <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+        <Label htmlFor="designation">Designation</Label>
+        <Input id="designation" value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} required />
       </div>
       <div>
-        <Label htmlFor="specialization">Specialization</Label>
-        <Input id="specialization" value={formData.specialization} onChange={(e) => setFormData({...formData, specialization: e.target.value})} required />
+        <Label htmlFor="expertise">Area of Expertise</Label>
+        <Input id="expertise" value={formData.expertise} onChange={(e) => setFormData({...formData, expertise: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="bio">Bio</Label>
+        <Textarea id="bio" value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="publications">Publications/Achievements</Label>
+        <Textarea id="publications" value={formData.publications} onChange={(e) => setFormData({...formData, publications: e.target.value})} />
       </div>
       <Button type="submit">Add Faculty</Button>
     </form>
@@ -728,35 +814,54 @@ const FacultyForm = ({ onSave }) => {
 };
 
 const PlacementForm = ({ onSave }) => {
-  const [formData, setFormData] = useState({ student: '', rollNumber: '', company: '', package: '', year: '2025' });
+  const [formData, setFormData] = useState({ 
+    student_name: '', 
+    company: '', 
+    ctc: '', 
+    type: 'Full-Time', 
+    year: '2025', 
+    branch: 'AI & Data Science' 
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
-    setFormData({ student: '', rollNumber: '', company: '', package: '', year: '2025' });
+    onSave({
+      ...formData,
+      ctc: formData.ctc ? parseFloat(formData.ctc) : null,
+      year: parseInt(formData.year)
+    });
+    setFormData({ student_name: '', company: '', ctc: '', type: 'Full-Time', year: '2025', branch: 'AI & Data Science' });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="student">Student Name</Label>
-        <Input id="student" value={formData.student} onChange={(e) => setFormData({...formData, student: e.target.value})} required />
-      </div>
-      <div>
-        <Label htmlFor="rollNumber">Roll Number</Label>
-        <Input id="rollNumber" value={formData.rollNumber} onChange={(e) => setFormData({...formData, rollNumber: e.target.value})} required />
+        <Label htmlFor="student_name">Student Name</Label>
+        <Input id="student_name" value={formData.student_name} onChange={(e) => setFormData({...formData, student_name: e.target.value})} required />
       </div>
       <div>
         <Label htmlFor="company">Company</Label>
         <Input id="company" value={formData.company} onChange={(e) => setFormData({...formData, company: e.target.value})} required />
       </div>
       <div>
-        <Label htmlFor="package">Package</Label>
-        <Input id="package" value={formData.package} onChange={(e) => setFormData({...formData, package: e.target.value})} required />
+        <Label htmlFor="ctc">CTC (in LPA)</Label>
+        <Input id="ctc" type="number" step="0.01" value={formData.ctc} onChange={(e) => setFormData({...formData, ctc: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="type">Type</Label>
+        <select 
+          id="type" 
+          value={formData.type} 
+          onChange={(e) => setFormData({...formData, type: e.target.value})}
+          className="w-full h-10 px-3 py-2 border border-input rounded-md"
+        >
+          <option value="Full-Time">Full-Time</option>
+          <option value="Internship">Internship</option>
+        </select>
       </div>
       <div>
         <Label htmlFor="year">Year</Label>
-        <Input id="year" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
+        <Input id="year" type="number" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
       </div>
       <Button type="submit">Add Placement</Button>
     </form>
