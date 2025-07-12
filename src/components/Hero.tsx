@@ -1,16 +1,15 @@
+
 import React, { useState } from 'react';
-import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Users, Calendar, GraduationCap, Trophy, BookOpen, MapPin, Phone, Mail, X } from 'lucide-react';
-import LoginModal from './LoginModal';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Users, Calendar, GraduationCap, Trophy, BookOpen, MapPin, Phone, Mail, Eye, Target } from 'lucide-react';
 
 const Hero = () => {
-  const [, setLocation] = useLocation();
   const [selectedSection, setSelectedSection] = useState(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [userType, setUserType] = useState<'student' | 'admin'>('student');
+  const [showVisionMission, setShowVisionMission] = useState(false);
+  const [showProgramOutcomes, setShowProgramOutcomes] = useState(false);
 
   const sections = {
     events: {
@@ -52,17 +51,27 @@ const Hero = () => {
     }
   };
 
+  const programOutcomes = [
+    { id: 'PO1', title: 'Engineering Knowledge', description: 'Apply the knowledge of mathematics, science, engineering fundamentals, and an engineering specialization to the solution of complex engineering problems.' },
+    { id: 'PO2', title: 'Problem Analysis', description: 'Identify, formulate, review research literature, and analyze complex engineering problems reaching substantiated conclusions using first principles of mathematics, natural sciences, and engineering sciences.' },
+    { id: 'PO3', title: 'Design/Development of Solutions', description: 'Design solutions for complex engineering problems and design system components or processes that meet the specified needs with appropriate consideration for the public health and safety, and the cultural, societal, and environmental considerations.' },
+    { id: 'PO4', title: 'Conduct Investigations of Complex Problems', description: 'Use research-based knowledge and research methods including design of experiments, analysis and interpretation of data, and synthesis of the information to provide valid conclusions.' },
+    { id: 'PO5', title: 'Modern Tool Usage', description: 'Create, select, and apply appropriate techniques, resources, and modern engineering and IT tools including prediction and modeling to complex engineering activities with an understanding of the limitations.' },
+    { id: 'PO6', title: 'The Engineer and Society', description: 'Apply reasoning informed by the contextual knowledge to assess societal, health, safety, legal and cultural issues and the consequent responsibilities relevant to the professional engineering practice.' },
+    { id: 'PO7', title: 'Environment and Sustainability', description: 'Understand the impact of the professional engineering solutions in societal and environmental contexts, and demonstrate the knowledge of, and need for sustainable development.' },
+    { id: 'PO8', title: 'Ethics', description: 'Apply ethical principles and commit to professional ethics and responsibilities and norms of the engineering practice.' },
+    { id: 'PO9', title: 'Individual and Team Work', description: 'Function effectively as an individual, and as a member or leader in diverse teams, and in multidisciplinary settings.' },
+    { id: 'PO10', title: 'Communication', description: 'Communicate effectively on complex engineering activities with the engineering community and with society at large, such as, being able to comprehend and write effective reports and design documentation, make effective presentations, and give and receive clear instructions.' },
+    { id: 'PO11', title: 'Project Management and Finance', description: 'Demonstrate knowledge and understanding of the engineering and management principles and apply these to one\'s own work, as a member and leader in a team, to manage projects and in multidisciplinary environments.' },
+    { id: 'PO12', title: 'Life-long Learning', description: 'Recognize the need for, and have the preparation and ability to engage in independent and life-long learning in the broadest context of technological change.' }
+  ];
+
   const openSection = (sectionKey) => {
     setSelectedSection(sectionKey);
   };
 
   const closeModal = () => {
     setSelectedSection(null);
-  };
-
-  const handleLoginClick = (type: 'student' | 'admin') => {
-    setUserType(type);
-    setShowLogin(true);
   };
 
   return (
@@ -93,17 +102,19 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
-              onClick={() => handleLoginClick('student')}
+              onClick={() => setShowVisionMission(true)}
             >
-              Student Portal
+              <Eye className="w-5 h-5 mr-2" />
+              Vision & Mission
             </Button>
             <Button 
               size="lg" 
               variant="outline" 
               className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 text-lg"
-              onClick={() => handleLoginClick('admin')}
+              onClick={() => setShowProgramOutcomes(true)}
             >
-              Admin Portal
+              <Target className="w-5 h-5 mr-2" />
+              Program Outcomes
             </Button>
           </div>
         </div>
@@ -261,14 +272,82 @@ const Hero = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Login Modal */}
-      {showLogin && (
-        <LoginModal 
-          isOpen={showLogin} 
-          onClose={() => setShowLogin(false)} 
-          userType={userType}
-        />
-      )}
+      {/* Vision & Mission Modal */}
+      <Dialog open={showVisionMission} onOpenChange={setShowVisionMission}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-2xl">
+              <Eye className="w-6 h-6" />
+              <span>Vision & Mission</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-xl font-bold text-blue-600 mb-4">Vision</h3>
+              <p className="text-gray-700 leading-relaxed">
+                To empower individuals to acquire advanced knowledge and skills with cutting edge combination in Artificial Intelligence and Data Science with Analytical Visualization Technologies to address the challenges of the society and contribute to the nation building.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-xl font-bold text-purple-600 mb-4">Mission</h3>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start">
+                  <span className="w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span>Provide strong AI & DS foundations through comprehensive curriculum and hands-on learning experiences</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span>Create tech-enabled learning environments that foster innovation and critical thinking</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span>Develop state-of-the-art research labs for advanced AI and Data Science exploration</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="w-2 h-2 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                  <span>Nurture leadership qualities through co-curricular and extra-curricular activities</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Program Outcomes Modal */}
+      <Dialog open={showProgramOutcomes} onOpenChange={setShowProgramOutcomes}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-2xl">
+              <Target className="w-6 h-6" />
+              <span>Program Outcomes</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-gray-600 mb-6">
+              Our AI & Data Science program is designed to achieve the following 12 Program Outcomes:
+            </p>
+            
+            <Accordion type="single" collapsible className="w-full">
+              {programOutcomes.map((outcome) => (
+                <AccordionItem key={outcome.id} value={outcome.id}>
+                  <AccordionTrigger className="text-left">
+                    <span className="font-semibold text-blue-600 mr-2">{outcome.id}:</span>
+                    {outcome.title}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="text-gray-700 leading-relaxed pl-4">
+                      {outcome.description}
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Users, Calendar, GraduationCap, TrendingUp, LogOut, BookOpen, Trophy, Image, BarChart3, Plus, Trash2, Check, X, Upload, Edit, Clock, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import TimetableManager from '@/components/TimetableManager';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -43,20 +44,12 @@ const AdminDashboard = () => {
     { id: 3, student: 'Carol White', company: 'Amazon', package: '28 LPA', year: '2024', rollNumber: '21CS103' },
   ]);
 
-  const [timetable, setTimetable] = useState([
-    { id: 1, time: '9:00 AM', monday: 'ML', tuesday: 'DS', wednesday: 'DB', thursday: 'WD', friday: 'Lab' },
-    { id: 2, time: '10:00 AM', monday: 'DS', tuesday: 'ML', wednesday: 'WD', thursday: 'DB', friday: 'Lab' },
-    { id: 3, time: '11:00 AM', monday: 'DB', tuesday: 'WD', wednesday: 'ML', thursday: 'DS', friday: 'Lab' },
-    { id: 4, time: '12:00 PM', monday: 'WD', tuesday: 'DB', wednesday: 'DS', thursday: 'ML', friday: 'Free' },
-  ]);
-
   const [gallery, setGallery] = useState([
     { id: 1, title: 'Tech Fest 2024', url: '/placeholder.svg', description: 'Annual tech festival' },
     { id: 2, title: 'AI Workshop', url: '/placeholder.svg', description: 'Machine learning workshop' },
   ]);
 
   const [editingStudent, setEditingStudent] = useState(null);
-  const [editingTimetable, setEditingTimetable] = useState(null);
 
   // Student Management Functions
   const approveStudent = (studentId) => {
@@ -131,15 +124,6 @@ const AdminDashboard = () => {
     if (file) {
       toast({ title: "Results uploaded successfully", description: "Semester results will be available in student dashboards." });
     }
-  };
-
-  // Timetable Update Function
-  const updateTimetable = (updatedSlot) => {
-    setTimetable(prev => prev.map(slot => 
-      slot.id === updatedSlot.id ? updatedSlot : slot
-    ));
-    setEditingTimetable(null);
-    toast({ title: "Timetable updated successfully" });
   };
 
   // Gallery Management Functions
@@ -584,50 +568,7 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-200 px-4 py-2 text-left">Time</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Monday</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Tuesday</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Wednesday</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Thursday</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Friday</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timetable.map((slot) => (
-                        <tr key={slot.id}>
-                          <td className="border border-gray-200 px-4 py-2 font-semibold">{slot.time}</td>
-                          <td className="border border-gray-200 px-4 py-2">{slot.monday}</td>
-                          <td className="border border-gray-200 px-4 py-2">{slot.tuesday}</td>
-                          <td className="border border-gray-200 px-4 py-2">{slot.wednesday}</td>
-                          <td className="border border-gray-200 px-4 py-2">{slot.thursday}</td>
-                          <td className="border border-gray-200 px-4 py-2">{slot.friday}</td>
-                          <td className="border border-gray-200 px-4 py-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" onClick={() => setEditingTimetable(slot)}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Edit Timetable Slot</DialogTitle>
-                                </DialogHeader>
-                                {editingTimetable && (
-                                  <TimetableEditForm slot={editingTimetable} onSave={updateTimetable} />
-                                )}
-                              </DialogContent>
-                            </Dialog>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <TimetableManager />
               </CardContent>
             </Card>
           </TabsContent>
@@ -818,41 +759,6 @@ const PlacementForm = ({ onSave }) => {
         <Input id="year" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
       </div>
       <Button type="submit">Add Placement</Button>
-    </form>
-  );
-};
-
-const TimetableEditForm = ({ slot, onSave }) => {
-  const [formData, setFormData] = useState(slot);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="monday">Monday</Label>
-        <Input id="monday" value={formData.monday} onChange={(e) => setFormData({...formData, monday: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="tuesday">Tuesday</Label>
-        <Input id="tuesday" value={formData.tuesday} onChange={(e) => setFormData({...formData, tuesday: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="wednesday">Wednesday</Label>
-        <Input id="wednesday" value={formData.wednesday} onChange={(e) => setFormData({...formData, wednesday: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="thursday">Thursday</Label>
-        <Input id="thursday" value={formData.thursday} onChange={(e) => setFormData({...formData, thursday: e.target.value})} />
-      </div>
-      <div>
-        <Label htmlFor="friday">Friday</Label>
-        <Input id="friday" value={formData.friday} onChange={(e) => setFormData({...formData, friday: e.target.value})} />
-      </div>
-      <Button type="submit">Update Timetable</Button>
     </form>
   );
 };
