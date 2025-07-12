@@ -33,17 +33,22 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     setIsLoading(true);
     setError('');
 
+    console.log('Form submitted:', { email, userType, isSignUp });
+
     try {
       if (isSignUp) {
         console.log('Attempting signup for:', email, userType);
         const result = await signUp(email, password, userType);
         if (result.error) {
+          console.error('Signup error:', result.error);
           setError(result.error.message);
           return;
         }
+        console.log('Signup successful');
       } else {
         console.log('Attempting login for:', email, userType);
         await login(email, password, userType);
+        console.log('Login successful');
       }
 
       // Reset form and close modal on success
@@ -161,6 +166,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                   setError('');
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
+                disabled={isLoading}
               >
                 <UserPlus className="w-4 h-4" />
                 {isSignUp ? 'Already have an account? Sign In' : 'New user? Create Account'}
