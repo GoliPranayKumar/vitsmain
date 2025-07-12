@@ -13,21 +13,23 @@ import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <Switch>
-          <Route path="/" component={Index} />
-          <Route path="/admin-dashboard" component={AdminDashboard} />
-          <Route path="/student-dashboard" component={StudentDashboard} />
-          <Route component={NotFound} />
-        </Switch>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <Switch>
+            <Route path="/" component={Index} />
+            <Route path="/admin-dashboard" component={AdminDashboard} />
+            <Route path="/student-dashboard" component={StudentDashboard} />
+            <Route component={NotFound} />
+          </Switch>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
