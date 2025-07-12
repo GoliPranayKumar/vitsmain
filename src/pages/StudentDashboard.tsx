@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,17 +6,16 @@ import { LogOut, User, Calendar, BookOpen, Trophy, Clock } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 const StudentDashboard = () => {
-  const { user, logout } = useAuth();
+  const { userProfile, logout } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Redirect if user doesn't have approved status
-    if (user && user.status !== 'approved') {
+    if (userProfile && userProfile.status !== 'approved') {
       setLocation('/');
     }
-  }, [user, setLocation]);
+  }, [userProfile, setLocation]);
 
-  if (!user || user.status !== 'approved') {
+  if (!userProfile || userProfile.status !== 'approved') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -44,7 +42,7 @@ const StudentDashboard = () => {
           <div className="flex justify-between items-center h-16">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-              <p className="text-sm text-gray-600">Welcome back, {user.student_name}!</p>
+              <p className="text-sm text-gray-600">Welcome back, {userProfile.student_name}!</p>
             </div>
             <Button
               onClick={logout}
@@ -65,7 +63,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">H.T Number</p>
-                  <p className="text-lg font-bold text-blue-600">{user.htno}</p>
+                  <p className="text-lg font-bold text-blue-600">{userProfile.htno}</p>
                 </div>
                 <User className="w-8 h-8 text-blue-600" />
               </div>
@@ -77,7 +75,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Academic Year</p>
-                  <p className="text-lg font-bold text-green-600">{user.year}rd Year</p>
+                  <p className="text-lg font-bold text-green-600">{userProfile.year}rd Year</p>
                 </div>
                 <BookOpen className="w-8 h-8 text-green-600" />
               </div>
