@@ -1,6 +1,11 @@
-
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,19 +31,19 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
+
     try {
       if (isSignUp) {
         const result = await signUp(email, password, userType);
         if (result.error) {
           setError(result.error.message);
-        } else {
-          onClose();
+          return;
         }
       } else {
         await login(email, password, userType);
-        onClose();
       }
+
+      onClose(); // Close modal on success
     } catch (error: any) {
       console.error('Authentication failed:', error);
       setError(error.message || 'Authentication failed. Please try again.');
@@ -67,20 +72,19 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             {isSignUp ? 'Create Account' : `${userType === 'admin' ? 'Admin' : 'Student'} Login`}
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600">
-            {isSignUp 
-              ? `Create a new ${userType} account` 
-              : `Enter your credentials to access the ${userType} dashboard`
-            }
+            {isSignUp
+              ? `Create a new ${userType} account`
+              : `Enter your credentials to access the ${userType} dashboard`}
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-3">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="email" className="text-sm font-medium">
@@ -95,11 +99,12 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   placeholder={`Enter your ${userType} email`}
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
@@ -113,6 +118,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
                   placeholder="Enter your password"
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   required
                 />
                 <button
@@ -136,7 +142,9 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               disabled={isLoading}
             >
-              {isLoading ? (isSignUp ? 'Creating Account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign In')}
+              {isLoading
+                ? (isSignUp ? 'Creating Account...' : 'Signing in...')
+                : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
 
             <div className="text-center">
