@@ -14,36 +14,276 @@ export type Database = {
   }
   public: {
     Tables: {
-      user_profiles: {
+      attendance: {
         Row: {
+          attended_classes: number | null
+          created_at: string | null
           id: string
-          role: string
+          month: string
+          percentage: number | null
+          student_id: string | null
+          total_classes: number | null
+          year: number
         }
         Insert: {
+          attended_classes?: number | null
+          created_at?: string | null
           id?: string
-          role: string
+          month: string
+          percentage?: number | null
+          student_id?: string | null
+          total_classes?: number | null
+          year: number
         }
         Update: {
+          attended_classes?: number | null
+          created_at?: string | null
+          id?: string
+          month?: string
+          percentage?: number | null
+          student_id?: string | null
+          total_classes?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
+      certifications: {
+        Row: {
+          created_at: string | null
+          date_issued: string
+          file_url: string | null
+          id: string
+          issuer: string
+          status: string | null
+          student_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          date_issued: string
+          file_url?: string | null
+          id?: string
+          issuer: string
+          status?: string | null
+          student_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          date_issued?: string
+          file_url?: string | null
+          id?: string
+          issuer?: string
+          status?: string | null
+          student_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          image_url: string | null
+          location: string | null
+          time: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          time: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          time?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      faculty: {
+        Row: {
+          created_at: string | null
+          education: string | null
+          email: string | null
+          id: string
+          image_url: string | null
+          linkedin: string | null
+          name: string
+          phone: string | null
+          position: string
+          research: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          education?: string | null
+          email?: string | null
+          id?: string
+          image_url?: string | null
+          linkedin?: string | null
+          name: string
+          phone?: string | null
+          position: string
+          research?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          education?: string | null
+          email?: string | null
+          id?: string
+          image_url?: string | null
+          linkedin?: string | null
+          name?: string
+          phone?: string | null
+          position?: string
+          research?: string | null
+        }
+        Relationships: []
+      }
+      placements: {
+        Row: {
+          company: string
+          created_at: string | null
+          id: string
+          package: string
+          position: string
+          students_placed: number | null
+          year: string
+        }
+        Insert: {
+          company: string
+          created_at?: string | null
+          id?: string
+          package: string
+          position: string
+          students_placed?: number | null
+          year: string
+        }
+        Update: {
+          company?: string
+          created_at?: string | null
+          id?: string
+          package?: string
+          position?: string
+          students_placed?: number | null
+          year?: string
+        }
+        Relationships: []
+      }
+      results: {
+        Row: {
+          cgpa: number | null
+          created_at: string | null
+          file_url: string | null
+          id: string
+          semester: number
+          sgpa: number | null
+          student_id: string | null
+          year: number
+        }
+        Insert: {
+          cgpa?: number | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          semester: number
+          sgpa?: number | null
+          student_id?: string | null
+          year: number
+        }
+        Update: {
+          cgpa?: number | null
+          created_at?: string | null
+          file_url?: string | null
+          id?: string
+          semester?: number
+          sgpa?: number | null
+          student_id?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      timetable: {
+        Row: {
+          created_at: string | null
+          day: string
+          hour: string
+          id: string
+          subject_name: string
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          day: string
+          hour: string
+          id?: string
+          subject_name: string
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          day?: string
+          hour?: string
+          id?: string
+          subject_name?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          ht_no: string | null
+          id: string
+          role: string
+          status: string | null
+          student_name: string | null
+          year: string | null
+        }
+        Insert: {
+          ht_no?: string | null
+          id?: string
+          role: string
+          status?: string | null
+          student_name?: string | null
+          year?: string | null
+        }
+        Update: {
+          ht_no?: string | null
           id?: string
           role?: string
+          status?: string | null
+          student_name?: string | null
+          year?: string | null
         }
         Relationships: []
       }
       verified_students: {
         Row: {
-          "H.T No.": string
-          "Student Name": string | null
-          Year: string | null
+          ht_no: string
+          student_name: string | null
+          year: string | null
         }
         Insert: {
-          "H.T No.": string
-          "Student Name"?: string | null
-          Year?: string | null
+          ht_no: string
+          student_name?: string | null
+          year?: string | null
         }
         Update: {
-          "H.T No."?: string
-          "Student Name"?: string | null
-          Year?: string | null
+          ht_no?: string
+          student_name?: string | null
+          year?: string | null
         }
         Relationships: []
       }

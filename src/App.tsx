@@ -15,7 +15,7 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppContent: React.FC = () => {
-  const { needsProfile } = useAuth();
+  const { needsProfileCreation } = useAuth();
 
   return (
     <>
@@ -25,7 +25,7 @@ const AppContent: React.FC = () => {
         <Route path="/student-dashboard" component={StudentDashboard} />
         <Route component={NotFound} />
       </Switch>
-      <ProfileCreationModal open={needsProfile} />
+      <ProfileCreationModal open={needsProfileCreation} />
     </>
   );
 };

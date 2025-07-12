@@ -51,7 +51,7 @@ interface Placement {
 }
 
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const { toast } = useToast();
   
   // State for real-time data
@@ -330,7 +330,7 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center h-16">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600">Welcome back, {user?.name}! Manage your department effectively.</p>
+              <p className="text-sm text-gray-600">Welcome back, {user?.email}! Manage your department effectively.</p>
             </div>
             <Button
               onClick={logout}
