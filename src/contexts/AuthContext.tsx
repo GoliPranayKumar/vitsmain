@@ -1,217 +1,192 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Define profile structure
+export interface UserProfile {
+  id: string;
+  htno?: string;
+  student_name?: string;
+  year?: string;
+  role: 'student' | 'admin';
+  status: 'pending' | 'approved';
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  userProfile: any;
+  userProfile: UserProfile | null;
   login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
   signUp: (email: string, password: string, userType: 'student' | 'admin') => Promise<{ error: any }>;
   logout: () => Promise<void>;
   loading: boolean;
   needsProfileCreation: boolean;
-  createProfile: (profileData: any) => Promise<void>;
+  createProfile: (profileData: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const { toast } = useToast();
 
+  // Load user profile
+  const loadUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      setUserProfile(null);
+      setNeedsProfileCreation(true);
+    } else {
+      setUserProfile(data as UserProfile);
+      setNeedsProfileCreation(false);
+    }
+  };
+
+  // Auth state listener
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Defer profile loading to avoid callback issues
-          setTimeout(() => {
-            loadUserProfile(session.user.id);
-          }, 0);
-        } else {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setSession(session ?? null);
+        if (currentUser) await loadUserProfile(currentUser.id);
+        else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
         }
-        
         setLoading(false);
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => {
-          loadUserProfile(session.user.id);
-        }, 0);
-      }
+    supabase.auth.getSession().then(({ data }) => {
+      const currentUser = data.session?.user ?? null;
+      setUser(currentUser);
+      setSession(data.session ?? null);
+      if (currentUser) loadUserProfile(currentUser.id);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  const loadUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await (supabase as any)
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No profile found, user needs to create one
-          setNeedsProfileCreation(true);
-          setUserProfile(null);
-        } else {
-          console.error('Error loading user profile:', error);
-        }
-      } else if (data) {
-        console.log('User profile loaded:', data);
-        setUserProfile(data as any);
-        setNeedsProfileCreation(false);
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
-
+  // Login logic
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
 
-      if (error) {
-        console.error('Login error:', error);
-        throw error;
-      }
-
-      if (data.user) {
-        // Check if user has the correct role
-        await loadUserProfile(data.user.id);
-        toast({
-          title: "Login successful",
-          description: `Welcome back!`,
-        });
-      }
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      throw error;
+    if (data.user) {
+      await loadUserProfile(data.user.id);
+      toast({ title: 'Login successful', description: 'Welcome back!' });
     }
   };
 
+  // Sign up logic with student verification
   const signUp = async (email: string, password: string, userType: 'student' | 'admin') => {
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
+    const redirectUrl = `${window.location.origin}/`;
 
-      if (error) {
-        console.error('Sign up error:', error);
-        return { error };
-      }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: redirectUrl },
+    });
 
-      if (data.user) {
-        // Create initial user profile
-        const { error: profileError } = await (supabase as any)
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            role: userType,
-            status: userType === 'student' ? 'pending' : 'approved'
-          });
+    if (error) return { error };
 
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
+    if (data.user) {
+      if (userType === 'student') {
+        const rollNumber = email.split('@')[0]; // Assuming email starts with HT No.
+
+        const { data: verified, error: verifyError } = await supabase
+          .from('verified_students')
+          .select('*')
+          .eq('H.T No.', rollNumber)
+          .single();
+
+        if (verifyError || !verified) {
+          return { error: { message: 'You are not in the verified students list.' } };
         }
 
-        toast({
-          title: "Account created successfully",
-          description: userType === 'student' 
-            ? "Please complete your profile. Admin approval may be required." 
-            : "Your admin account has been created.",
+        const { error: profileError } = await supabase.from('user_profiles').insert({
+          id: data.user.id,
+          htno: verified['H.T No.'],
+          student_name: verified['Student Name'],
+          year: verified['Year'],
+          role: 'student',
+          status: 'pending',
+        });
+
+        if (profileError) console.error('Error inserting student profile:', profileError);
+      } else {
+        await supabase.from('user_profiles').insert({
+          id: data.user.id,
+          role: 'admin',
+          status: 'approved',
         });
       }
 
-      return { error: null };
-    } catch (error: any) {
-      console.error('Sign up failed:', error);
-      return { error };
-    }
-  };
-
-  const createProfile = async (profileData: any) => {
-    try {
-      if (!user) throw new Error('No authenticated user');
-
-      const { error } = await (supabase as any)
-        .from('user_profiles')
-        .update({
-          ...(profileData as any),
-          status: 'pending'
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      await loadUserProfile(user.id);
       toast({
-        title: "Profile created successfully",
-        description: "Your profile is pending admin approval.",
+        title: 'Account created',
+        description:
+          userType === 'student'
+            ? 'Student account created. Profile pending admin approval.'
+            : 'Admin account created successfully.',
       });
-    } catch (error: any) {
-      console.error('Error creating profile:', error);
-      throw error;
     }
+
+    return { error: null };
   };
 
+  // Create/Update profile
+  const createProfile = async (profileData: Partial<UserProfile>) => {
+    if (!user) throw new Error('User not logged in');
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ ...profileData, status: 'pending' })
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    await loadUserProfile(user.id);
+
+    toast({
+      title: 'Profile updated',
+      description: 'Your profile is pending admin approval.',
+    });
+  };
+
+  // Logout
   const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      setUser(null);
-      setSession(null);
-      setUserProfile(null);
-      setNeedsProfileCreation(false);
-      
-      toast({
-        title: "Logged out successfully",
-        description: "You have been signed out of your account.",
-      });
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      throw error;
-    }
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+    setNeedsProfileCreation(false);
+
+    toast({
+      title: 'Logged out',
+      description: 'You have been signed out successfully.',
+    });
   };
 
   return (
