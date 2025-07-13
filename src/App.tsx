@@ -1,67 +1,298 @@
-import React from 'react';
-import { Route, Switch } from 'wouter';
-import { Toaster } from '@/components/ui/toaster';
-import { Toaster as Sonner } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import ProfileCreationModal from '@/components/ProfileCreationModal';
-import Index from './pages/Index';
-import AdminDashboard from './pages/AdminDashboard';
-import StudentDashboard from './pages/StudentDashboard';
-import NotFound from './pages/NotFound';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User } from '@supabase/supabase-js';
+import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
-const queryClient = new QueryClient();
+interface UserProfile {
+  id: string;
+  role: string;
+  status: string;
+  student_name: string | null;
+  ht_no: string | null;
+  year: string | null;
+}
 
-const AppRoutes: React.FC = () => {
-  const { user, loading, needsProfileCreation, closeProfileCreationModal } = useAuth();
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  userProfile: UserProfile | null;
+  loading: boolean;
+  needsProfileCreation: boolean;
+  login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
+  signUp: (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => Promise<{ error: any }>;
+  logout: () => Promise<void>;
+  createProfile: (profileData: { ht_no: string; student_name: string; year: string }) => Promise<void>;
+  closeProfileCreationModal: () => void;
+}
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  const showModal = !!user && needsProfileCreation;
-
-  return (
-    <>
-      <Switch>
-        <Route path="/" component={Index} />
-        <Route path="/admin-dashboard" component={AdminDashboard} />
-        <Route path="/student-dashboard" component={StudentDashboard} />
-        <Route component={NotFound} />
-      </Switch>
-
-      {showModal && (
-        <ProfileCreationModal
-          open={true}
-          onOpenChange={(open) => {
-            if (!open) closeProfileCreationModal();
-          }}
-        />
-      )}
-    </>
-  );
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
 };
 
-const App: React.FC = () => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  // Load user profile from DB
+  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading profile:', error);
+        setNeedsProfileCreation(true);
+        return null;
+      }
+
+      if (!data) {
+        setNeedsProfileCreation(true);
+        return null;
+      }
+
+      setNeedsProfileCreation(false);
+      return data;
+    } catch (err) {
+      console.error('Exception loading profile:', err);
+      setNeedsProfileCreation(true);
+      return null;
+    }
+  };
+
+  // Initialize session and listen to auth state changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      setLoading(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const profile = await loadUserProfile(session.user.id);
+          if (!isMounted) return;
+
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+          setNeedsProfileCreation(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
+
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        setUserProfile(profile);
+      } else {
+        setUserProfile(null);
+        setNeedsProfileCreation(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Login user
+  const login = async (email: string, password: string, userType: 'student' | 'admin') => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const profile = await loadUserProfile(data.user.id);
+        setUser(data.user);
+        setUserProfile(profile);
+
+        if (profile?.role === 'admin') {
+          setLocation('/admin-dashboard');
+        } else if (profile?.role === 'student') {
+          if (profile.status === 'approved') {
+            setLocation('/student-dashboard');
+          } else {
+            toast({
+              title: 'Pending Approval',
+              description: 'Your profile is awaiting admin approval.',
+            });
+            setLocation('/');
+          }
+        } else {
+          // fallback
+          setNeedsProfileCreation(true);
+          setLocation('/');
+        }
+
+        toast({ title: 'Login successful', description: 'Welcome back!' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Login failed', description: err.message || 'Unknown error' });
+      throw err;
+    }
+  };
+
+  // Signup user
+  const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
+    try {
+      let verified: any = null;
+
+      if (userType === 'student') {
+        const { data, error: verifyError } = await supabase
+          .from('verified_students')
+          .select('*')
+          .eq('ht_no', ht_no)
+          .maybeSingle();
+
+        if (verifyError || !data) {
+          return {
+            error: {
+              message: 'Hall ticket not found in verified students. Contact admin.',
+            },
+          };
+        }
+
+        verified = data;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { role: userType },
+        },
+      });
+
+      if (error) return { error };
+
+      if (data.user) {
+        const insertData: any = {
+          id: data.user.id,
+          role: userType,
+          status: userType === 'admin' ? 'approved' : 'pending',
+        };
+
+        if (userType === 'student') {
+          insertData.ht_no = ht_no;
+          insertData.student_name = verified?.student_name || email.split('@')[0];
+          insertData.year = verified?.year?.toString() || null;
+        }
+
+        const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
+
+        if (insertError) {
+          console.error('Error inserting user profile:', insertError);
+          return { error: insertError };
+        }
+
+        toast({
+          title: 'Account created',
+          description:
+            userType === 'admin'
+              ? 'Admin account created successfully.'
+              : 'Account created. Please wait for admin approval.',
+        });
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Signup failed:', error);
+      return { error };
+    }
+  };
+
+  // Create or update profile
+  const createProfile = async (profileData: { ht_no: string; student_name: string; year: string }) => {
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        ht_no: profileData.ht_no,
+        student_name: profileData.student_name,
+        year: profileData.year.toString(),
+        status: 'pending',
+      })
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    const updated = await loadUserProfile(user.id);
+    setUserProfile(updated);
+    setNeedsProfileCreation(false);
+
+    toast({
+      title: 'Profile submitted',
+      description: 'Your profile is pending admin approval.',
+    });
+  };
+
+  // Close profile creation modal forcibly
+  const closeProfileCreationModal = () => {
+    setNeedsProfileCreation(false);
+  };
+
+  // Logout
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+    setNeedsProfileCreation(false);
+    setLocation('/');
+
+    toast({ title: 'Logged out', description: 'You have been signed out.' });
+  };
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <AppRoutes />
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        userProfile,
+        loading,
+        needsProfileCreation,
+        login,
+        signUp,
+        logout,
+        createProfile,
+        closeProfileCreationModal,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
 };
-
-export default App;
