@@ -78,7 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
-      if (manuallyLoggedIn) handleRedirection(data);
+
+      if (manuallyLoggedIn) {
+        handleRedirection(data);
+        setManuallyLoggedIn(false);
+      }
     } catch (error) {
       console.error('Exception loading user profile:', error);
       setUserProfile(null);
