@@ -14,7 +14,7 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppRoutes: React.FC = () => {
-  const { user, loading, needsProfileCreation, closeProfileCreationModal } = useAuth();
+  const { user, userProfile, loading, needsProfileCreation, closeProfileCreationModal } = useAuth();
 
   if (loading) {
     return (
@@ -27,7 +27,8 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  const showModal = !!user && needsProfileCreation;
+  const isStudent = userProfile?.role === 'student';
+  const showModal = !!user && isStudent && needsProfileCreation;
 
   return (
     <>
