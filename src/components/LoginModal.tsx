@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -12,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, User, Lock, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/use-toast';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -33,29 +33,36 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
     setIsLoading(true);
     setError('');
 
-    console.log('Form submitted:', { email, userType, isSignUp });
-
     try {
       if (isSignUp) {
-        console.log('Attempting signup for:', email, userType);
+        // Only allow admin sign-up
+        if (userType !== 'admin') {
+          toast({
+            title: 'Students must use Create Profile',
+            description: 'Please use the Create Profile button on the homepage.',
+            variant: 'destructive'
+          });
+          setIsLoading(false);
+          return;
+        }
+
         const result = await signUp(email, password, userType);
         if (result.error) {
-          console.error('Signup error:', result.error);
           setError(result.error.message);
           return;
         }
-        console.log('Signup successful');
+        toast({
+          title: 'Admin Account Created',
+          description: 'Admin account has been created successfully.'
+        });
         resetForm();
         onClose();
       } else {
-        console.log('Attempting login for:', email, userType);
         await login(email, password, userType);
-        console.log('Login successful - closing modal');
         resetForm();
         onClose();
       }
     } catch (error: any) {
-      console.error('Authentication failed:', error);
       setError(error.message || 'Authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -84,7 +91,9 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600">
             {isSignUp
-              ? `Create a new ${userType} account`
+              ? userType === 'admin'
+                ? 'Create a new admin account'
+                : 'Students must use Create Profile instead.'
               : `Enter your credentials to access the ${userType} dashboard`}
           </DialogDescription>
         </DialogHeader>
@@ -158,20 +167,23 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                 : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError('');
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
-                disabled={isLoading}
-              >
-                <UserPlus className="w-4 h-4" />
-                {isSignUp ? 'Already have an account? Sign In' : 'New user? Create Account'}
-              </button>
-            </div>
+            {/* Only show Create Account toggle for Admins */}
+            {userType === 'admin' && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setError('');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
+                  disabled={isLoading}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  {isSignUp ? 'Already have an account? Sign In' : 'New Admin? Create Account'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </DialogContent>
