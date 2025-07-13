@@ -61,12 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loadUserProfile = async (userId: string) => {
-    if (!userId) {
-      console.log('No userId provided');
-      setLoading(false);
-      return;
-    }
-
     console.log('Loading profile for user:', userId);
 
     try {
@@ -82,7 +76,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error loading profile:', error);
         setUserProfile(null);
         setNeedsProfileCreation(false);
-        setLoading(false);
         return;
       }
 
@@ -90,7 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('No profile found - user needs profile creation');
         setUserProfile(null);
         setNeedsProfileCreation(true);
-        setLoading(false);
         return;
       }
 
@@ -100,48 +92,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Handle redirection after profile is loaded
       handleRedirection(data);
-      setLoading(false);
     } catch (error) {
       console.error('Exception loading user profile:', error);
       setUserProfile(null);
       setNeedsProfileCreation(false);
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     console.log('Setting up auth state listener');
     
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           console.log('User authenticated, loading profile...');
-          loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
           setNeedsProfileCreation(false);
-          setLoading(false);
         }
+        
+        setLoading(false);
       }
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       console.log('Initial session check:', session?.user?.email);
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        loadUserProfile(session.user.id);
-      } else {
-        setLoading(false);
+        await loadUserProfile(session.user.id);
       }
-    });
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -166,7 +162,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: 'Login successful', 
           description: 'Welcome back!' 
         });
-        // Profile loading and redirection will happen in the auth state change handler
       }
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -197,7 +192,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Signup successful:', data);
 
       if (data.user) {
-        // Create initial profile with correct column names
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert({
@@ -219,10 +213,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? 'Admin account created successfully!' 
             : 'Please complete your profile. Awaiting admin approval.',
         });
-
-        if (userType === 'student') {
-          setNeedsProfileCreation(true);
-        }
       }
 
       return { error: null };
