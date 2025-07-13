@@ -1,32 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'wouter';
 import { supabase } from '@/integrations/supabase/client';
+import { useLocation } from 'wouter';
 import {
-  Card, CardHeader, CardTitle, CardContent,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, FileDown, LogOut, Upload, Eye, Trash2, User, BookOpen } from 'lucide-react';
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Input, Label
+} from '@/components/ui';
+import {
+  LogOut, Pencil, Upload, Eye, Trash2
+} from 'lucide-react';
 
 const StudentDashboard = () => {
   const { userProfile, logout, loading } = useAuth();
   const [, setLocation] = useLocation();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const profileInputRef = useRef<HTMLInputElement>(null);
-
+  const [activeTab, setActiveTab] = useState('profile');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [results, setResults] = useState<any[]>([]);
-  const [certifications, setCertifications] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [timetable, setTimetable] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [openCertModal, setOpenCertModal] = useState(false);
+  const [certs, setCerts] = useState<any[]>([]);
+  const [results, setResults] = useState<any[]>([]);
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [certFile, setCertFile] = useState<File | null>(null);
   const [certTitle, setCertTitle] = useState('');
   const [certDesc, setCertDesc] = useState('');
-  const [certFile, setCertFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!loading && (!userProfile || userProfile.role !== 'student')) {
@@ -36,65 +34,57 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     if (userProfile?.roll_number) {
-      fetchPhoto();
+      fetchProfilePhoto();
+      fetchCerts();
       fetchResults();
-      fetchCertifications();
-      fetchAttendance();
       fetchTimetable();
+      fetchAttendance();
     }
   }, [userProfile]);
 
-  const fetchPhoto = async () => {
+  const getInitials = (name: string) =>
+    name?.split(' ').map(n => n[0]).join('').toUpperCase();
+
+  const fetchProfilePhoto = async () => {
     const { data } = await supabase.storage
       .from('profile_photos')
       .getPublicUrl(`profiles/${userProfile.id}/photo.jpg`);
     setPhotoUrl(data?.publicUrl || null);
   };
 
-  const handleProfileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const path = `profiles/${userProfile.id}/photo.jpg`;
     await supabase.storage.from('profile_photos').upload(path, file, { upsert: true });
-    fetchPhoto();
+    fetchProfilePhoto();
   };
 
-  const getInitials = (name: string) => name?.split(' ').map((n) => n[0]).join('').toUpperCase();
+  const fetchCerts = async () => {
+    const { data } = await supabase.from('certifications')
+      .select('*').eq('roll_number', userProfile.roll_number);
+    setCerts(data || []);
+  };
 
   const fetchResults = async () => {
-    const { data } = await supabase
-      .from('results')
-      .select('*')
-      .eq('roll_number', userProfile.roll_number);
+    const { data } = await supabase.from('results')
+      .select('*').eq('roll_number', userProfile.roll_number);
     setResults(data || []);
   };
 
-  const fetchCertifications = async () => {
-    const { data } = await supabase
-      .from('certifications')
-      .select('*')
-      .eq('roll_number', userProfile.roll_number);
-    setCertifications(data || []);
-  };
-
-  const fetchAttendance = async () => {
-    const { data } = await supabase
-      .from('attendance_summary')
-      .select('*')
-      .eq('roll_number', userProfile.roll_number);
-    setAttendance(data || []);
-  };
-
   const fetchTimetable = async () => {
-    const { data } = await supabase
-      .from('timetables')
-      .select('*')
-      .eq('year', userProfile.year);
+    const { data } = await supabase.from('timetables')
+      .select('*').eq('year', userProfile.year);
     setTimetable(data || []);
   };
 
-  const uploadCertificate = async () => {
+  const fetchAttendance = async () => {
+    const { data } = await supabase.from('attendance_summary')
+      .select('*').eq('roll_number', userProfile.roll_number);
+    setAttendance(data || []);
+  };
+
+  const uploadCert = async () => {
     if (!certFile || !certTitle) return;
     const path = `certifications/${userProfile.roll_number}/${certTitle}.pdf`;
     await supabase.storage.from('certifications').upload(path, certFile, { upsert: true });
@@ -104,210 +94,153 @@ const StudentDashboard = () => {
       description: certDesc,
       file_url: path,
     });
-    setOpenCertModal(false);
-    fetchCertifications();
-    setCertFile(null);
+    fetchCerts();
     setCertTitle('');
     setCertDesc('');
+    setCertFile(null);
   };
 
-  const deleteCertificate = async (filePath: string, id: string) => {
+  const deleteCert = async (filePath: string, id: string) => {
     await supabase.storage.from('certifications').remove([filePath]);
     await supabase.from('certifications').delete().eq('id', id);
-    fetchCertifications();
+    fetchCerts();
   };
 
-  if (loading || !userProfile) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
-  }
-
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <header className="flex justify-between items-center mb-6">
+    <div className="p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Student Dashboard</h1>
+        <Button variant="outline" onClick={logout}><LogOut className="mr-2" size={16} />Logout</Button>
+      </div>
+
+      {/* Profile Top Card */}
+      <div className="bg-white p-4 rounded-xl shadow flex items-center space-x-4">
+        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+          {photoUrl ? (
+            <img src={photoUrl} className="w-full h-full rounded-full object-cover" />
+          ) : (
+            getInitials(userProfile.full_name || '')
+          )}
+          <Pencil size={16} className="absolute bottom-0 right-0 bg-white rounded-full p-1 cursor-pointer"
+            onClick={() => fileInputRef.current?.click()} />
+          <input type="file" ref={fileInputRef} onChange={handlePhotoChange} className="hidden" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold">Welcome, {userProfile.student_name}</h1>
+          <h2 className="text-lg font-semibold">{userProfile.full_name}</h2>
+          <p className="text-sm text-muted-foreground">{userProfile.roll_number}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <a
-            href="https://eazypay.icicibank.com/eazypayLink?P1=/2/SVNghjulFgj4uw2vsXQ=="
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Pay Fees
-          </a>
-          <Button variant="outline" onClick={logout}>
-            <LogOut className="w-4 h-4 mr-1" /> Logout
-          </Button>
-        </div>
-      </header>
+      </div>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-sm text-gray-500">Roll Number</p>
-              <p className="font-semibold">{userProfile.roll_number}</p>
-            </div>
-            <User className="text-blue-500 w-6 h-6" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-sm text-gray-500">Academic Year</p>
-              <p className="font-semibold">{userProfile.year}</p>
-            </div>
-            <BookOpen className="text-green-500 w-6 h-6" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-sm text-gray-500">Attendance (Cumulative)</p>
-              <p className="font-semibold">
-                {attendance.length > 0
-                  ? `${Math.round(
-                      (attendance.reduce((sum, a) => sum + a.attended, 0) /
-                        attendance.reduce((sum, a) => sum + a.total, 0)) *
-                        100
-                    )}%`
-                  : 'N/A'}
-              </p>
-            </div>
-            <Clock className="text-orange-500 w-6 h-6" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-sm text-gray-500">Profile</p>
-              <div className="flex items-center space-x-2">
-                {photoUrl ? (
-                  <img src={photoUrl} className="w-10 h-10 rounded-full" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white flex items-center justify-center font-bold">
-                    {getInitials(userProfile.student_name)}
-                  </div>
-                )}
-                <Upload
-                  className="w-4 h-4 cursor-pointer"
-                  onClick={() => profileInputRef.current?.click()}
-                />
-                <input
-                  type="file"
-                  ref={profileInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleProfileUpload}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card><CardContent className="p-4"><p>Attendance</p><h3 className="text-xl font-bold">{attendance.length ? `${attendance[0].cumulative}%` : '0%'}</h3></CardContent></Card>
+        <Card><CardContent className="p-4"><p>Current CGPA</p><h3 className="text-xl font-bold">{userProfile.cgpa || 'N/A'}</h3></CardContent></Card>
+        <Card><CardContent className="p-4"><p>Certifications</p><h3 className="text-xl font-bold">{certs.length}</h3></CardContent></Card>
+      </div>
 
-      {/* Timetable */}
-      <section className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle><Calendar className="w-5 h-5 mr-2 inline" /> Timetable</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {timetable.length > 0 ? (
-              <table className="w-full text-sm mt-2 border">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2 border">Day</th>
-                    <th className="p-2 border">Hour</th>
-                    <th className="p-2 border">Subject</th>
-                    <th className="p-2 border">Faculty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {timetable.map((row, i) => (
-                    <tr key={i}>
-                      <td className="p-2 border">{row.day}</td>
-                      <td className="p-2 border">{row.hour}</td>
-                      <td className="p-2 border">{row.subject}</td>
-                      <td className="p-2 border">{row.faculty}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No timetable found</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      {/* Tabs */}
+      <div className="flex space-x-4 border-b">
+        {['profile', 'attendance', 'results', 'certs', 'timetable'].map((tab) => (
+          <Button key={tab} variant={activeTab === tab ? 'default' : 'ghost'} onClick={() => setActiveTab(tab)}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</Button>
+        ))}
+      </div>
 
-      {/* Results */}
-      <section className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle><FileDown className="w-5 h-5 mr-2 inline" /> Results</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {results.length > 0 ? (
-              results.map((res) => (
-                <div key={res.id} className="flex justify-between items-center border p-2 rounded">
-                  <span>{res.semester} - {new Date(res.uploaded_at).toLocaleDateString()}</span>
-                  <div className="space-x-2">
-                    <a href={res.file_url} target="_blank"><Eye className="w-5 h-5 text-green-600" /></a>
-                    <a href={res.file_url} download><FileDown className="w-5 h-5 text-blue-600" /></a>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p>📄 Results not uploaded yet.</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      {/* Tab Content */}
+      {activeTab === 'profile' && (
+        <Card><CardContent className="p-6 grid grid-cols-2 gap-4">
+          <p><strong>Full Name:</strong> {userProfile.full_name}</p>
+          <p><strong>Email:</strong> {userProfile.email}</p>
+          <p><strong>Phone:</strong> {userProfile.phone}</p>
+          <p><strong>Year:</strong> {userProfile.year}</p>
+          <p><strong>Section:</strong> {userProfile.section}</p>
+          <p><strong>Semester:</strong> {userProfile.semester}</p>
+        </CardContent></Card>
+      )}
 
-      {/* Certifications */}
-      <section className="mb-6">
-        <Card>
-          <CardHeader className="flex justify-between items-center">
-            <CardTitle><Upload className="w-5 h-5 mr-2 inline" /> Certifications</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setOpenCertModal(true)}>Upload</Button>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {certifications.map((cert) => (
-              <div key={cert.id} className="flex justify-between items-center border p-2 rounded">
-                <div>
-                  <p className="font-semibold">{cert.title}</p>
-                  <p className="text-sm text-gray-600">{new Date(cert.uploaded_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex space-x-2">
-                  <a href={`https://guseqyxrqxocgykrirsz.supabase.co/storage/v1/object/public/${cert.file_url}`} target="_blank">
-                    <Eye className="w-5 h-5 text-green-600" />
-                  </a>
-                  <a href={`https://guseqyxrqxocgykrirsz.supabase.co/storage/v1/object/public/${cert.file_url}`} download>
-                    <FileDown className="w-5 h-5 text-blue-600" />
-                  </a>
-                  <Trash2
-                    className="w-5 h-5 text-red-600 cursor-pointer"
-                    onClick={() => deleteCertificate(cert.file_url, cert.id)}
-                  />
-                </div>
-              </div>
+      {activeTab === 'attendance' && (
+        <Card><CardContent className="p-6">
+          <h3 className="font-semibold mb-4">Subject-wise Attendance</h3>
+          <table className="w-full border"><thead><tr>
+            <th className="p-2 border">Subject</th>
+            <th className="p-2 border">Attendance %</th>
+          </tr></thead><tbody>
+            {attendance.map((a) => (
+              <tr key={a.subject}>
+                <td className="p-2 border">{a.subject}</td>
+                <td className="p-2 border">{a.percentage}%</td>
+              </tr>
             ))}
-          </CardContent>
-        </Card>
-      </section>
+          </tbody></table>
+        </CardContent></Card>
+      )}
 
-      {/* Upload Certificate Modal */}
-      <Dialog open={openCertModal} onOpenChange={setOpenCertModal}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Upload Certificate</DialogTitle></DialogHeader>
-          <Input placeholder="Title" value={certTitle} onChange={(e) => setCertTitle(e.target.value)} className="mb-2" />
-          <Input placeholder="Description (optional)" value={certDesc} onChange={(e) => setCertDesc(e.target.value)} className="mb-2" />
-          <Input type="file" accept=".pdf,.jpg,.png" onChange={(e) => setCertFile(e.target.files?.[0] || null)} />
-          <Button className="mt-3 w-full" onClick={uploadCertificate}>Upload</Button>
-        </DialogContent>
-      </Dialog>
+      {activeTab === 'results' && (
+        <Card><CardContent className="p-6">
+          <h3 className="font-semibold mb-4">Results</h3>
+          {results.map((r) => (
+            <div key={r.id} className="flex justify-between items-center mb-2">
+              <span>{r.title}</span>
+              <a href={supabase.storage.from('results').getPublicUrl(r.file_url).data.publicUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="ghost" size="sm"><Eye className="mr-1" size={14} /> View</Button>
+              </a>
+            </div>
+          ))}
+        </CardContent></Card>
+      )}
+
+      {activeTab === 'certs' && (
+        <Card><CardContent className="p-6 space-y-4">
+          <h3 className="font-semibold">Upload Certificate</h3>
+          <Input type="text" placeholder="Title" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+          <Input type="text" placeholder="Description" value={certDesc} onChange={e => setCertDesc(e.target.value)} />
+          <Input type="file" onChange={e => setCertFile(e.target.files?.[0] || null)} />
+          <Button onClick={uploadCert}><Upload size={16} className="mr-2" />Upload</Button>
+
+          <h3 className="font-semibold mt-6">Uploaded Certificates</h3>
+          {certs.map((c) => (
+            <div key={c.id} className="flex justify-between items-center">
+              <span>{c.title}</span>
+              <div className="space-x-2">
+                <a href={supabase.storage.from('certifications').getPublicUrl(c.file_url).data.publicUrl} target="_blank">
+                  <Button variant="ghost" size="sm"><Eye size={14} /></Button>
+                </a>
+                <Button variant="destructive" size="sm" onClick={() => deleteCert(c.file_url, c.id)}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent></Card>
+      )}
+
+      {activeTab === 'timetable' && (
+        <Card><CardContent className="p-6">
+          <h3 className="font-semibold mb-4">Full Timetable</h3>
+          <table className="w-full border">
+            <thead>
+              <tr>
+                <th className="p-2 border">Day</th>
+                <th className="p-2 border">Period 1</th>
+                <th className="p-2 border">Period 2</th>
+                <th className="p-2 border">Period 3</th>
+                <th className="p-2 border">Period 4</th>
+              </tr>
+            </thead>
+            <tbody>
+              {timetable.map((t, idx) => (
+                <tr key={idx}>
+                  <td className="p-2 border">{t.day}</td>
+                  <td className="p-2 border">{t.p1}</td>
+                  <td className="p-2 border">{t.p2}</td>
+                  <td className="p-2 border">{t.p3}</td>
+                  <td className="p-2 border">{t.p4}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent></Card>
+      )}
     </div>
   );
 };
