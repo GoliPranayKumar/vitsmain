@@ -39,11 +39,6 @@ export const useAuth = () => {
   return context;
 };
 
-const debugLog = (...args: any[]) => {
-  // Optional: enable/disable debug logs here
-  // console.log('[AuthContext]', ...args);
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -53,38 +48,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Load user profile with 5 second timeout guard
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    debugLog('Loading user profile for userId:', userId);
-
-    const timeoutPromise = new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout loading user profile')), 5000)
-    );
-
     try {
-      const { data, error } = await Promise.race([
-        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(),
-        timeoutPromise,
-      ]);
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (error) {
-        debugLog('Error loading user profile:', error);
-        setNeedsProfileCreation(true);
+      if (error || !data) {
         return null;
       }
 
-      if (!data) {
-        debugLog('No user profile found, user must create profile');
-        setNeedsProfileCreation(true);
-        return null;
-      }
-
-      debugLog('User profile loaded:', data);
-      setNeedsProfileCreation(false);
       return data;
     } catch (err) {
-      debugLog('Exception loading user profile:', err);
-      setNeedsProfileCreation(true);
       return null;
     }
   };
@@ -93,23 +70,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let isMounted = true;
 
     const initAuth = async () => {
-      debugLog('Initializing auth...');
       setLoading(true);
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data } = await supabase.auth.getSession();
+        const currentSession = data.session;
 
         if (!isMounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-        if (session?.user) {
-          const profile = await loadUserProfile(session.user.id);
-          debugLog('Profile loaded in initAuth:', profile);
-          if (!isMounted) return;
+        if (currentSession?.user) {
+          const profile = await loadUserProfile(currentSession.user.id);
           setUserProfile(profile);
+
+          // ✅ Only set needsProfileCreation for missing student profile
+          if (!profile && currentSession.user.user_metadata?.role === 'student') {
+            setNeedsProfileCreation(true);
+          } else {
+            setNeedsProfileCreation(false);
+          }
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -119,25 +99,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setNeedsProfileCreation(false);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-          debugLog('Auth initialization finished.');
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
     initAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      debugLog('Auth state changed:', _event, session);
-      if (!isMounted) return;
-
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const profile = await loadUserProfile(session.user.id);
         setUserProfile(profile);
+
+        // ✅ same logic during state change
+        if (!profile && session.user.user_metadata?.role === 'student') {
+          setNeedsProfileCreation(true);
+        } else {
+          setNeedsProfileCreation(false);
+        }
       } else {
         setUserProfile(null);
         setNeedsProfileCreation(false);
@@ -160,10 +141,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user);
         setUserProfile(profile);
 
+        if (!profile && userType === 'student') {
+          setNeedsProfileCreation(true);
+          toast({ title: 'Create your profile', description: 'Complete your student profile.' });
+          return;
+        }
+
         if (profile?.role === 'admin') {
+          setNeedsProfileCreation(false);
           setLocation('/admin-dashboard');
         } else if (profile?.role === 'student') {
           if (profile.status === 'approved') {
+            setNeedsProfileCreation(false);
             setLocation('/student-dashboard');
           } else {
             toast({
@@ -172,9 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             setLocation('/');
           }
-        } else {
-          setNeedsProfileCreation(true);
-          setLocation('/');
         }
 
         toast({ title: 'Login successful', description: 'Welcome back!' });
@@ -236,11 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
-
-        if (insertError) {
-          console.error('Error inserting user profile:', insertError);
-          return { error: insertError };
-        }
+        if (insertError) return { error: insertError };
 
         toast({
           title: 'Account created',
@@ -253,7 +235,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error: any) {
-      console.error('Signup failed:', error);
       return { error };
     }
   };
