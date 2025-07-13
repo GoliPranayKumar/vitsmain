@@ -7,9 +7,10 @@ import { useLocation } from 'wouter';
 import {
   LogOut, Pencil, Upload, Eye, Trash2
 } from 'lucide-react';
-import {
-  Button, Card, CardContent, Input, Label, useToast
-} from '@/components/ui';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
 
 const StudentDashboard = () => {
   const { userProfile, logout, loading } = useAuth();
