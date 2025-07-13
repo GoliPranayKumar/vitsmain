@@ -42,7 +42,6 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
             description: 'Please use the Create Profile button below.',
             variant: 'destructive',
           });
-          setIsLoading(false);
           return;
         }
 
@@ -85,7 +84,9 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) handleClose();
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
