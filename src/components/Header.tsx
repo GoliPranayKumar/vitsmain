@@ -1,12 +1,13 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, UserCheck, Menu, X } from 'lucide-react';
 import LoginModal from './LoginModal';
+import ProfileCreationModal from './ProfileCreationModal';
 
 const Header = () => {
   const [showStudentLogin, setShowStudentLogin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -23,9 +24,7 @@ const Header = () => {
 
   const scrollToSection = (href: string) => {
     const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
     setMobileMenuOpen(false);
   };
 
@@ -131,11 +130,21 @@ const Header = () => {
         isOpen={showStudentLogin}
         onClose={() => setShowStudentLogin(false)}
         userType="student"
+        onOpenCreateProfile={() => {
+          setShowStudentLogin(false);
+          setShowCreateProfile(true);
+        }}
       />
       <LoginModal
         isOpen={showAdminLogin}
         onClose={() => setShowAdminLogin(false)}
         userType="admin"
+      />
+
+      {/* Create Profile Modal */}
+      <ProfileCreationModal
+        open={showCreateProfile}
+        onOpenChange={(open) => setShowCreateProfile(open)}
       />
     </>
   );
