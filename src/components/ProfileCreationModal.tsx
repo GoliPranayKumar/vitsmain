@@ -77,7 +77,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
               id="ht_no"
               value={formData.ht_no}
               onChange={(e) => setFormData(prev => ({ ...prev, ht_no: e.target.value }))}
-              placeholder="e.g., 22A91A05XX"
+              placeholder="e.g., 2X891A72XX"
               required
             />
           </div>
