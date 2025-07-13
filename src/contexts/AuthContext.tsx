@@ -42,23 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const handleRedirection = (profile: UserProfile) => {
-    if (profile.role === 'admin') {
-      setLocation('/admin-dashboard');
-    } else if (profile.role === 'student') {
-      if (profile.status === 'approved') {
-        setLocation('/student-dashboard');
-      } else {
-        toast({
-          title: 'Pending Approval',
-          description: 'Your profile is awaiting admin approval.',
-        });
-        setLocation('/');
-      }
-    }
-  };
-
-  const loadUserProfile = async (userId: string, email: string, session: Session | null): Promise<UserProfile | null> => {
+  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -68,25 +52,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error loading profile:', error);
-        setUserProfile(null);
         return null;
       }
 
       if (!data) {
-        setUserProfile(null);
-
-        const role = session?.user?.user_metadata?.role;
-        setNeedsProfileCreation(role === 'student');
+        setNeedsProfileCreation(true);
         return null;
       }
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
-      handleRedirection(data);
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
-      setUserProfile(null);
       return null;
     }
   };
@@ -98,7 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserProfile(session.user.id, session.user.email ?? '', session);
+          const profile = await loadUserProfile(session.user.id);
+          setUserProfile(profile);
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -115,7 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserProfile(session.user.id, session.user.email ?? '', session);
+          const profile = await loadUserProfile(session.user.id);
+          setUserProfile(profile);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -130,17 +110,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
 
-      if (data.user) {
-        toast({ title: 'Login successful', description: 'Welcome back!' });
+    const userId = data.user?.id;
+    if (userId) {
+      const profile = await loadUserProfile(userId);
+      if (profile?.role === 'admin') {
+        setLocation('/admin-dashboard');
+      } else if (profile?.role === 'student') {
+        if (profile.status === 'approved') {
+          setLocation('/student-dashboard');
+        } else {
+          toast({
+            title: 'Pending Approval',
+            description: 'Your profile is pending admin approval.',
+          });
+          setLocation('/');
+        }
       }
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      throw error;
     }
+
+    toast({ title: 'Login successful', description: 'Welcome back!' });
   };
 
   const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
@@ -188,8 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           insertData.year = verified?.year?.toString() || null;
         }
 
-        const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
-        if (insertError) console.error('Error inserting user_profiles:', insertError);
+        await supabase.from('user_profiles').insert(insertData);
 
         toast({
           title: 'Account created',
@@ -210,46 +200,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createProfile = async (profileData: any) => {
     if (!user) throw new Error('User not authenticated');
 
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          ht_no: profileData.ht_no,
-          student_name: profileData.student_name,
-          year: profileData.year.toString(),
-          status: 'pending',
-        })
-        .eq('id', user.id);
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        ht_no: profileData.ht_no,
+        student_name: profileData.student_name,
+        year: profileData.year.toString(),
+        status: 'pending',
+      })
+      .eq('id', user.id);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      await loadUserProfile(user.id, user.email ?? '', session);
-
-      toast({
-        title: 'Profile submitted',
-        description: 'Your profile is pending admin approval.',
-      });
-    } catch (error) {
-      console.error('Profile creation failed:', error);
-      throw error;
+    const updated = await loadUserProfile(user.id);
+    if (updated?.status === 'approved') {
+      setLocation('/student-dashboard');
     }
+
+    toast({
+      title: 'Profile submitted',
+      description: 'Your profile is pending admin approval.',
+    });
   };
 
   const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+    setNeedsProfileCreation(false);
+    setLocation('/');
 
-      setUser(null);
-      setSession(null);
-      setUserProfile(null);
-      setNeedsProfileCreation(false);
-      setLocation('/');
-
-      toast({ title: 'Logged out', description: 'You have been signed out.' });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    toast({ title: 'Logged out', description: 'You have been signed out.' });
   };
 
   return (
