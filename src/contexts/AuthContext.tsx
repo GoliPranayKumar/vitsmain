@@ -50,18 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error loading profile:', error);
-        return null;
-      }
-
-      if (!data) {
+      if (error || !data) {
         setNeedsProfileCreation(true);
         return null;
       }
 
-      setUserProfile(data);
       setNeedsProfileCreation(false);
+      setUserProfile(data);
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
@@ -83,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setNeedsProfileCreation(false);
         }
 
-        setLoading(false);
+        setLoading(false); // ✅ Make sure this always runs
       }
     );
 
@@ -100,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
-        setLoading(false);
+        setLoading(false); // ✅ avoid hanging loading
       }
     };
 
@@ -113,9 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    const userId = data.user?.id;
-    if (userId) {
-      const profile = await loadUserProfile(userId);
+    if (data.user) {
+      const profile = await loadUserProfile(data.user.id);
+      setUserProfile(profile);
+
+      // ✅ Redirect only after login succeeds
       if (profile?.role === 'admin') {
         setLocation('/admin-dashboard');
       } else if (profile?.role === 'student') {
@@ -124,14 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           toast({
             title: 'Pending Approval',
-            description: 'Your profile is pending admin approval.',
+            description: 'Your profile is awaiting admin approval.',
           });
           setLocation('/');
         }
       }
-    }
 
-    toast({ title: 'Login successful', description: 'Welcome back!' });
+      toast({ title: 'Login successful', description: 'Welcome back!' });
+    }
   };
 
   const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
@@ -213,9 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
 
     const updated = await loadUserProfile(user.id);
-    if (updated?.status === 'approved') {
-      setLocation('/student-dashboard');
-    }
+    setUserProfile(updated);
 
     toast({
       title: 'Profile submitted',
