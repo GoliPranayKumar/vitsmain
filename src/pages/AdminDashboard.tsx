@@ -52,22 +52,26 @@ interface Placement {
 }
 
 const AdminDashboard = () => {
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, logout, loading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  
+
+  console.log('AdminDashboard: userProfile:', userProfile, 'loading:', loading);
+
   // Redirect if not admin
   useEffect(() => {
-    console.log('AdminDashboard: Checking user access', { userProfile });
-    if (userProfile && userProfile.role !== 'admin') {
-      console.log('User is not admin, redirecting to home');
-      setLocation('/');
-      return;
+    if (!loading && userProfile) {
+      console.log('AdminDashboard: Checking user access', { userProfile });
+      if (userProfile.role !== 'admin') {
+        console.log('User is not admin, redirecting to home');
+        setLocation('/');
+        return;
+      }
     }
-  }, [userProfile, setLocation]);
+  }, [userProfile, loading, setLocation]);
 
   // Show loading while checking authentication
-  if (!userProfile) {
+  if (loading || !userProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -78,7 +82,7 @@ const AdminDashboard = () => {
     );
   }
 
-  // Redirect if not admin
+  // Show access denied if not admin
   if (userProfile.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

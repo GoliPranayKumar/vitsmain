@@ -32,11 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     console.log('Setting up auth state listener');
     
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
@@ -88,6 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
+      console.log('Profile query result:', { data, error });
+
       if (error) {
         console.error('Error loading profile:', error);
         setUserProfile(null);
@@ -102,21 +105,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setNeedsProfileCreation(false);
         
         // Handle redirection based on role and current location
-        console.log('Current location:', location);
-        console.log('User role:', data.role, 'Status:', data.status);
+        const currentPath = window.location.pathname;
+        console.log('Current path:', currentPath, 'User role:', data.role, 'Status:', data.status);
         
-        // Only redirect if we're on the home page (to avoid interfering with direct navigation)
-        if (location === '/') {
+        // Only redirect if we're on the home page to avoid interfering with direct navigation
+        if (currentPath === '/') {
           if (data.role === 'admin') {
             console.log('Redirecting admin to admin dashboard');
-            setTimeout(() => {
-              setLocation('/admin-dashboard');
-            }, 500);
+            setLocation('/admin-dashboard');
           } else if (data.role === 'student' && data.status === 'approved') {
             console.log('Redirecting approved student to student dashboard');
-            setTimeout(() => {
-              setLocation('/student-dashboard');
-            }, 500);
+            setLocation('/student-dashboard');
           } else if (data.role === 'student' && data.status === 'pending') {
             console.log('Student pending approval, staying on main page');
             // Student stays on main page

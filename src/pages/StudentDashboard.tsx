@@ -7,31 +7,35 @@ import { LogOut, User, Calendar, BookOpen, Trophy, Clock, X } from 'lucide-react
 import { useLocation } from 'wouter';
 
 const StudentDashboard = () => {
-  const { userProfile, logout } = useAuth();
+  const { userProfile, logout, loading } = useAuth();
   const [, setLocation] = useLocation();
 
+  console.log('StudentDashboard: userProfile:', userProfile, 'loading:', loading);
+
   useEffect(() => {
-    console.log('StudentDashboard: Checking user access', { userProfile });
-    if (userProfile && (userProfile.role !== 'student' || userProfile.status !== 'approved')) {
-      console.log('User is not approved student, redirecting to home');
-      setLocation('/');
-      return;
+    if (!loading && userProfile) {
+      console.log('StudentDashboard: Checking user access', { userProfile });
+      if (userProfile.role !== 'student' || userProfile.status !== 'approved') {
+        console.log('User is not approved student, redirecting to home');
+        setLocation('/');
+        return;
+      }
     }
-  }, [userProfile, setLocation]);
+  }, [userProfile, loading, setLocation]);
 
   // Show loading while checking authentication
-  if (!userProfile) {
+  if (loading || !userProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
-        </div>b
+        </div>
       </div>
     );
   }
 
-  // Show pending approval message
+  // Show pending approval or access denied message
   if (userProfile.role !== 'student' || userProfile.status !== 'approved') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -95,7 +99,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">H.T Number</p>
-                  <p className="text-lg font-bold text-blue-600">{userProfile.htno}</p>
+                  <p className="text-lg font-bold text-blue-600">{userProfile.htno || 'Not Set'}</p>
                 </div>
                 <User className="w-8 h-8 text-blue-600" />
               </div>
@@ -107,7 +111,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Academic Year</p>
-                  <p className="text-lg font-bold text-green-600">{userProfile.year}rd Year</p>
+                  <p className="text-lg font-bold text-green-600">{userProfile.year || 'Not Set'}</p>
                 </div>
                 <BookOpen className="w-8 h-8 text-green-600" />
               </div>
