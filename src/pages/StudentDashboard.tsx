@@ -89,7 +89,7 @@ const StudentDashboard = () => {
   const fetchAttendance = async () => {
     if (!userProfile?.ht_no) return;
     const { data } = await supabase
-      .from('attendance_summary')
+      .from('attendance')
       .select('*')
       .eq('ht_no', userProfile.ht_no);
     setAttendance(data || []);
