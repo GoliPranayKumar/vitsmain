@@ -42,57 +42,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+  const loadUserProfile = async (userId: string) => {
+    console.log('🧪 Loading user profile for:', userId);
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-      console.log('🔍 profile query result:', { data, error });
-
-      if (error || !data) {
-        setNeedsProfileCreation(true);
-        return null;
-      }
-
-      setNeedsProfileCreation(false);
-      return data;
-    } catch (error) {
-      console.error('❌ Exception loading user profile:', error);
+    if (error || !data) {
+      console.warn('⚠️ No user profile found or error occurred.');
+      setNeedsProfileCreation(true);
       return null;
     }
-  };
 
-  const initializeSession = async () => {
-    try {
-      console.log('⚡ Initializing auth...');
-      const { data: { session } } = await supabase.auth.getSession();
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        setUserProfile(profile);
-      } else {
-        setUserProfile(null);
-        setNeedsProfileCreation(false);
-      }
-    } catch (error) {
-      console.error('❌ Error initializing session:', error);
-    } finally {
-      setLoading(false);
-    }
+    setNeedsProfileCreation(false);
+    return data;
   };
 
   useEffect(() => {
-    initializeSession();
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔑 Session:', session);
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const profile = await loadUserProfile(session.user.id);
+          if (mounted) setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+          setNeedsProfileCreation(false);
+        }
+      } catch (error) {
+        console.error('❌ Error loading session:', error);
+      } finally {
+        setLoading(false); // ✅ Always turn off loading
+      }
+    };
+
+    init();
 
     const { data: subscription } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        console.log('🔄 Auth state changed:', _event, session);
+        console.log('🔁 Auth change:', _event, session);
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -107,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => {
+      mounted = false;
       subscription.subscription.unsubscribe();
     };
   }, []);
