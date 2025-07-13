@@ -35,7 +35,7 @@ const StudentDashboard = () => {
   }, [userProfile, loading]);
 
   useEffect(() => {
-    if (userProfile?.roll_number) {
+    if (userProfile?.ht_no) {
       fetchPhoto();
       fetchcertificates();
       fetchResults();
@@ -68,7 +68,7 @@ const StudentDashboard = () => {
     const { data } = await supabase
       .from('certifications')
       .select('*')
-      .eq('roll_number', userProfile.roll_number);
+      .eq('ht_no', userProfile.ht_no);
     setcertificates(data || []);
   };
 
@@ -76,7 +76,7 @@ const StudentDashboard = () => {
     const { data } = await supabase
       .from('results')
       .select('*')
-      .eq('roll_number', userProfile.roll_number);
+      .eq('ht_no', userProfile.ht_no);
     setResults(data || []);
   };
 
@@ -84,7 +84,7 @@ const StudentDashboard = () => {
     const { data } = await supabase
       .from('attendance_summary')
       .select('*')
-      .eq('roll_number', userProfile.roll_number);
+      .eq('ht_no', userProfile.ht_no);
     setAttendance(data || []);
   };
 
@@ -98,10 +98,10 @@ const StudentDashboard = () => {
 
   const uploadCert = async () => {
     if (!certFile || !certTitle) return;
-    const path = `certifications/${userProfile.roll_number}/${certTitle}.pdf`;
+    const path = `certifications/${userProfile.ht_no}/${certTitle}.pdf`;
     await supabase.storage.from('certifications').upload(path, certFile, { upsert: true });
     await supabase.from('certifications').insert({
-      roll_number: userProfile.roll_number,
+      ht_no: userProfile.ht_no,
       title: certTitle,
       description: certDesc,
       file_url: path,
@@ -150,7 +150,7 @@ const StudentDashboard = () => {
         </div>
         <div>
           <h2 className="text-lg font-semibold">{userProfile.full_name}</h2>
-          <p className="text-sm text-muted-foreground">{userProfile.roll_number}</p>
+          <p className="text-sm text-muted-foreground">{userProfile.ht_no}</p>
         </div>
       </div>
 
