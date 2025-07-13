@@ -33,10 +33,7 @@ export const useAuth = () => {
   return context;
 };
 
-const DEMO_EMAILS = [
-  'student@vignanits.ac.in',
-  'admin@vignanits.ac.in'
-];
+const DEMO_EMAILS = ['student@vignanits.ac.in', 'admin@vignanits.ac.in'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -85,6 +82,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
+
+      if (redirectPending) {
+        handleRedirection(data);
+        setRedirectPending(false);
+      }
+
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
@@ -101,12 +104,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          loadUserProfile(session.user.id).then((profile) => {
-            if (redirectPending && profile) {
-              handleRedirection(profile);
-              setRedirectPending(false);
-            }
-          }).finally(() => setLoading(false));
+          loadUserProfile(session.user.id).finally(() => {
+            setLoading(false);
+          });
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -147,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         toast({ title: 'Login successful', description: 'Welcome back!' });
+        await loadUserProfile(data.user.id); // Ensure profile is loaded immediately
       }
     } catch (error: any) {
       console.error('Login failed:', error);
