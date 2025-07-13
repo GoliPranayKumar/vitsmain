@@ -83,7 +83,7 @@ const About = () => {
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 md:p-12 text-white text-center">
           <h3 className="text-3xl md:text-4xl font-bold mb-6">Our Mission</h3>
           <p className="text-xl md:text-2xl leading-relaxed max-w-4xl mx-auto opacity-90">
-            To shape the next generation of AI and Data Science professionals through innovative education, 
+            To shape the next generation of Artificial Intelligence and Data Science professionals through innovative education, 
             groundbreaking research, and meaningful industry partnerships that drive technological advancement 
             and societal impact.
           </p>
