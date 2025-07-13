@@ -14,7 +14,7 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppRoutes: React.FC = () => {
-  const { needsProfileCreation, loading, user } = useAuth();
+  const { user, loading, needsProfileCreation } = useAuth();
 
   // Show loading while auth is initializing
   if (loading) {
@@ -28,6 +28,9 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  // ✅ Only show modal after login and loading complete
+  const showModal = !!user && !loading && needsProfileCreation;
+
   return (
     <>
       <Switch>
@@ -37,8 +40,7 @@ const AppRoutes: React.FC = () => {
         <Route component={NotFound} />
       </Switch>
 
-      {/* ✅ FIXED: Modal will only show when user is logged in, not loading, and profile is missing */}
-      {user && !loading && needsProfileCreation && (
+      {showModal && (
         <ProfileCreationModal open={true} />
       )}
     </>
