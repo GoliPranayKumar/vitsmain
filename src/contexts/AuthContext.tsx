@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loadUserProfile = async (userId: string, email: string): Promise<UserProfile | null> => {
+  const loadUserProfile = async (userId: string, email: string, session: Session | null): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -74,14 +74,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         setUserProfile(null);
-        const isStudent = user?.user_metadata?.role === 'student';
-        setNeedsProfileCreation(isStudent);
+
+        const role = session?.user?.user_metadata?.role;
+        setNeedsProfileCreation(role === 'student');
         return null;
       }
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
-      handleRedirection(data); // ✅ Always redirect after loading profile
+      handleRedirection(data);
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserProfile(session.user.id, session.user.email ?? '');
+          await loadUserProfile(session.user.id, session.user.email ?? '', session);
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -114,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserProfile(session.user.id, session.user.email ?? '');
+          await loadUserProfile(session.user.id, session.user.email ?? '', session);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -222,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      await loadUserProfile(user.id, user.email ?? '');
+      await loadUserProfile(user.id, user.email ?? '', session);
 
       toast({
         title: 'Profile submitted',
