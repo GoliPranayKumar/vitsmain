@@ -28,11 +28,15 @@ const StudentDashboard = () => {
   const [certDesc, setCertDesc] = useState('');
   const [certFile, setCertFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    if (!loading && (!userProfile || userProfile.role !== 'student')) {
-      setLocation('/');
-    }
-  }, [userProfile, loading]);
+  // ✅ Safely wait for auth to load
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  // ✅ Exit if userProfile is not ready
+  if (!userProfile || userProfile.role !== 'student') {
+    return <div className="flex justify-center items-center h-screen text-red-500">User profile not found or not a student.</div>;
+  }
 
   useEffect(() => {
     if (userProfile?.ht_no) {
@@ -65,6 +69,7 @@ const StudentDashboard = () => {
   };
 
   const fetchcertificates = async () => {
+    if (!userProfile?.ht_no) return;
     const { data } = await supabase
       .from('certifications')
       .select('*')
@@ -73,6 +78,7 @@ const StudentDashboard = () => {
   };
 
   const fetchResults = async () => {
+    if (!userProfile?.ht_no) return;
     const { data } = await supabase
       .from('results')
       .select('*')
@@ -81,6 +87,7 @@ const StudentDashboard = () => {
   };
 
   const fetchAttendance = async () => {
+    if (!userProfile?.ht_no) return;
     const { data } = await supabase
       .from('attendance_summary')
       .select('*')
@@ -89,6 +96,7 @@ const StudentDashboard = () => {
   };
 
   const fetchTimetable = async () => {
+    if (!userProfile?.year) return;
     const { data } = await supabase
       .from('timetables')
       .select('*')
