@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Route, Switch } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
@@ -37,8 +36,9 @@ const AppRoutes: React.FC = () => {
         <Route path="/student-dashboard" component={StudentDashboard} />
         <Route component={NotFound} />
       </Switch>
-      {/* CRITICAL FIX: Only show profile creation modal if user is authenticated AND needs profile creation */}
-      {user && needsProfileCreation && (
+
+      {/* ✅ FIXED: Modal will only show when user is logged in, not loading, and profile is missing */}
+      {user && !loading && needsProfileCreation && (
         <ProfileCreationModal open={true} />
       )}
     </>
