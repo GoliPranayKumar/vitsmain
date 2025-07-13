@@ -39,7 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [redirectPending, setRedirectPending] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -50,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile.status === 'approved') {
         setLocation('/student-dashboard');
       } else {
+        toast({
+          title: 'Pending Approval',
+          description: 'Your profile is awaiting admin approval.',
+        });
         setLocation('/');
       }
     }
@@ -66,50 +69,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error loading profile:', error);
         setUserProfile(null);
-        setNeedsProfileCreation(false);
         return null;
       }
 
       if (!data) {
         setUserProfile(null);
         const isStudent = user?.user_metadata?.role === 'student';
-        setNeedsProfileCreation(redirectPending && isStudent);
+        setNeedsProfileCreation(isStudent);
         return null;
       }
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
+      handleRedirection(data); // ✅ Always redirect after loading profile
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
       setUserProfile(null);
-      setNeedsProfileCreation(false);
       return null;
     }
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          loadUserProfile(session.user.id, session.user.email ?? '').then((profile) => {
-            if (redirectPending && profile) {
-              handleRedirection(profile);
-              setRedirectPending(false);
-            }
-          }).finally(() => setLoading(false));
+          await loadUserProfile(session.user.id, session.user.email ?? '');
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
-          setLoading(false);
         }
+
+        setLoading(false);
       }
     );
 
-    const initializeAuth = async () => {
+    const initialize = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
@@ -117,8 +115,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           await loadUserProfile(session.user.id, session.user.email ?? '');
-        } else {
-          setNeedsProfileCreation(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -127,17 +123,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    initializeAuth();
+    initialize();
 
     return () => subscription.unsubscribe();
-  }, [redirectPending]);
+  }, []);
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      setRedirectPending(true);
 
       if (data.user) {
         toast({ title: 'Login successful', description: 'Welcome back!' });
@@ -150,21 +144,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
     try {
-      // If student, validate against verified_students
+      let verified: any = null;
+
       if (userType === 'student') {
-        const { data: verified, error: verifyError } = await supabase
+        const { data, error: verifyError } = await supabase
           .from('verified_students')
           .select('*')
           .eq('ht_no', ht_no)
           .maybeSingle();
 
-        if (verifyError || !verified) {
+        if (verifyError || !data) {
           return {
             error: {
               message: 'Hall ticket not found in verified students. Contact admin.',
             },
           };
         }
+
+        verified = data;
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -246,7 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setUserProfile(null);
       setNeedsProfileCreation(false);
-      setRedirectPending(false);
       setLocation('/');
 
       toast({ title: 'Logged out', description: 'You have been signed out.' });
