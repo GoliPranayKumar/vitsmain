@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -82,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!data) {
         console.log('No profile found - user needs profile creation');
         setUserProfile(null);
+        // CRITICAL: Only set needsProfileCreation to true if we have an authenticated user
         setNeedsProfileCreation(true);
         return;
       }
@@ -120,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
+          // CRITICAL: Reset needsProfileCreation to false when user logs out
           setNeedsProfileCreation(false);
           setLoading(false);
         }
@@ -137,6 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           await loadUserProfile(session.user.id);
+        } else {
+          // CRITICAL: If no session, ensure needsProfileCreation is false
+          setNeedsProfileCreation(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);

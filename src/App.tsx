@@ -37,7 +37,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/student-dashboard" component={StudentDashboard} />
         <Route component={NotFound} />
       </Switch>
-      {/* Only show profile creation modal if user is authenticated AND needs profile creation */}
+      {/* CRITICAL FIX: Only show profile creation modal if user is authenticated AND needs profile creation */}
       {user && needsProfileCreation && (
         <ProfileCreationModal open={true} />
       )}
