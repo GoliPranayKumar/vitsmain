@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Calendar, BookOpen, Trophy, Clock, FileDown, Upload, Eye, X } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
+
 
 const StudentDashboard = () => {
   const { userProfile, logout, loading } = useAuth();
