@@ -215,6 +215,24 @@ export type Database = {
         }
         Relationships: []
       }
+      time_slots: {
+        Row: {
+          created_at: string | null
+          id: string
+          slot: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          slot: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          slot?: string
+        }
+        Relationships: []
+      }
       timetable: {
         Row: {
           created_at: string | null

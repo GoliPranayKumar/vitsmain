@@ -43,6 +43,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  const handleRedirection = (profile: UserProfile) => {
+    console.log('Handling redirection for profile:', profile);
+    
+    if (profile.role === 'admin') {
+      console.log('Redirecting admin to dashboard');
+      setLocation('/admin-dashboard');
+    } else if (profile.role === 'student') {
+      if (profile.status === 'approved') {
+        console.log('Redirecting approved student to dashboard');
+        setLocation('/student-dashboard');
+      } else {
+        console.log('Student pending approval, staying on main page');
+        // Student with pending status stays on main page
+      }
+    }
+  };
+
+  const loadUserProfile = async (userId: string) => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('Loading profile for user:', userId);
+
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      console.log('Profile query result:', { data, error });
+
+      if (error && error.code === 'PGRST116') {
+        console.log('No profile found - user needs profile creation');
+        setUserProfile(null);
+        setNeedsProfileCreation(true);
+        setLoading(false);
+        return;
+      }
+
+      if (error) {
+        console.error('Error loading profile:', error);
+        setUserProfile(null);
+        setNeedsProfileCreation(false);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        console.log('Profile loaded successfully:', data);
+        setUserProfile(data);
+        setNeedsProfileCreation(false);
+        
+        // Handle redirection after profile is loaded
+        handleRedirection(data);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      setUserProfile(null);
+      setNeedsProfileCreation(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     console.log('Setting up auth state listener');
     
@@ -55,8 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User authenticated, loading profile...');
-          // Load profile immediately without setTimeout to prevent race conditions
-          loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
@@ -80,72 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const loadUserProfile = async (userId: string) => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    console.log('Loading profile for user:', userId);
-
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      console.log('Profile query result:', { data, error });
-
-      if (error && error.code === 'PGRST116') {
-        // No profile found - this should only happen for new signups
-        console.log('No profile found for existing user - this is unusual');
-        setUserProfile(null);
-        setNeedsProfileCreation(false);
-        setLoading(false);
-        return;
-      }
-
-      if (error) {
-        console.error('Error loading profile:', error);
-        setUserProfile(null);
-        setNeedsProfileCreation(false);
-        setLoading(false);
-        return;
-      }
-
-      if (data) {
-        console.log('Profile loaded successfully:', data);
-        setUserProfile(data);
-        setNeedsProfileCreation(false);
-        
-        // Handle redirection based on role and current location
-        const currentPath = window.location.pathname;
-        console.log('Current path:', currentPath, 'User role:', data.role, 'Status:', data.status);
-        
-        // Only redirect if we're on the home page to avoid disrupting navigation
-        if (currentPath === '/') {
-          if (data.role === 'admin') {
-            console.log('Redirecting admin to admin dashboard');
-            setLocation('/admin-dashboard');
-          } else if (data.role === 'student' && data.status === 'approved') {
-            console.log('Redirecting approved student to student dashboard');
-            setLocation('/student-dashboard');
-          } else if (data.role === 'student' && data.status === 'pending') {
-            console.log('Student pending approval, staying on main page');
-            // Student stays on main page with pending status
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-      setUserProfile(null);
-      setNeedsProfileCreation(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     console.log('Attempting login for:', email, userType);
