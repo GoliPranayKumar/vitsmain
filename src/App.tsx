@@ -14,9 +14,8 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppRoutes: React.FC = () => {
-  const { user, loading, needsProfileCreation } = useAuth();
+  const { user, loading, needsProfileCreation, closeProfileCreationModal } = useAuth();
 
-  // Show a loader while initializing auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -28,8 +27,7 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  // Only show modal after login and loading complete
-  const showModal = !!user && !loading && needsProfileCreation;
+  const showModal = !!user && needsProfileCreation;
 
   return (
     <>
@@ -40,7 +38,14 @@ const AppRoutes: React.FC = () => {
         <Route component={NotFound} />
       </Switch>
 
-      {showModal && <ProfileCreationModal open={true} />}
+      {showModal && (
+        <ProfileCreationModal
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) closeProfileCreationModal();
+          }}
+        />
+      )}
     </>
   );
 };
