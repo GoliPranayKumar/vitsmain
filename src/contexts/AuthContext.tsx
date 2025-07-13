@@ -55,13 +55,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLocation('/student-dashboard');
       } else {
         console.log('Student pending approval, staying on main page');
-        // Student with pending status stays on main page
+        setLocation('/');
       }
     }
   };
 
   const loadUserProfile = async (userId: string) => {
     if (!userId) {
+      console.log('No userId provided');
       setLoading(false);
       return;
     }
@@ -73,17 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       console.log('Profile query result:', { data, error });
-
-      if (error && error.code === 'PGRST116') {
-        console.log('No profile found - user needs profile creation');
-        setUserProfile(null);
-        setNeedsProfileCreation(true);
-        setLoading(false);
-        return;
-      }
 
       if (error) {
         console.error('Error loading profile:', error);
@@ -93,19 +86,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (data) {
-        console.log('Profile loaded successfully:', data);
-        setUserProfile(data);
-        setNeedsProfileCreation(false);
-        
-        // Handle redirection after profile is loaded
-        handleRedirection(data);
+      if (!data) {
+        console.log('No profile found - user needs profile creation');
+        setUserProfile(null);
+        setNeedsProfileCreation(true);
+        setLoading(false);
+        return;
       }
+
+      console.log('Profile loaded successfully:', data);
+      setUserProfile(data);
+      setNeedsProfileCreation(false);
+      
+      // Handle redirection after profile is loaded
+      handleRedirection(data);
+      setLoading(false);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error('Exception loading user profile:', error);
       setUserProfile(null);
       setNeedsProfileCreation(false);
-    } finally {
       setLoading(false);
     }
   };
@@ -115,14 +114,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           console.log('User authenticated, loading profile...');
-          await loadUserProfile(session.user.id);
+          loadUserProfile(session.user.id);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
