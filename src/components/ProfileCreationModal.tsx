@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProfileCreationModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void; // <-- Added this prop
+  onOpenChange: (open: boolean) => void;
 }
 
 const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
@@ -55,7 +55,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 1. Check in verified_students
+      // 1. Verify student in verified_students
       const { data: verified, error: verifyError } = await supabase
         .from('verified_students')
         .select('*')
@@ -74,7 +74,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
         return;
       }
 
-      // 2. Sign up user in auth
+      // 2. Sign up user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -89,7 +89,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
 
       const userId = authData.user.id;
 
-      // 3. Insert into user_profiles
+      // 3. Insert profile
       const { error: insertError } = await supabase.from('user_profiles').insert({
         id: userId,
         ht_no,
@@ -114,7 +114,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
         year: '',
       });
 
-      // Optionally close modal on success:
+      // Close modal on success
       onOpenChange(false);
     } catch (error: any) {
       toast({
