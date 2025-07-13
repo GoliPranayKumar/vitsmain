@@ -13,10 +13,10 @@ const StudentDashboard = () => {
   console.log('StudentDashboard: userProfile:', userProfile, 'loading:', loading);
 
   useEffect(() => {
-    if (!loading && userProfile) {
+    if (!loading) {
       console.log('StudentDashboard: Checking user access', { userProfile });
-      if (userProfile.role !== 'student' || userProfile.status !== 'approved') {
-        console.log('User is not approved student, redirecting to home');
+      if (!userProfile || userProfile.role !== 'student') {
+        console.log('User is not a student, redirecting to home');
         setLocation('/');
         return;
       }
@@ -24,7 +24,7 @@ const StudentDashboard = () => {
   }, [userProfile, loading, setLocation]);
 
   // Show loading while checking authentication
-  if (loading || !userProfile) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -35,36 +35,41 @@ const StudentDashboard = () => {
     );
   }
 
-  // Show pending approval or access denied message
-  if (userProfile.role !== 'student' || userProfile.status !== 'approved') {
+  // Show access denied if not student
+  if (!userProfile || userProfile.role !== 'student') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            {userProfile.role !== 'student' ? (
-              <>
-                <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-                <p className="text-gray-600 mb-4">
-                  You don't have student privileges to access this page.
-                </p>
-                <Button onClick={() => setLocation('/')} variant="outline">
-                  Go Home
-                </Button>
-              </>
-            ) : (
-              <>
-                <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Awaiting Approval</h2>
-                <p className="text-gray-600 mb-4">
-                  Your profile is currently under review by the admin. Please wait for approval to access your dashboard.
-                </p>
-                <Button onClick={logout} variant="outline">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              </>
-            )}
+            <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              You don't have student privileges to access this page.
+            </p>
+            <Button onClick={() => setLocation('/')} variant="outline">
+              Go Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show pending approval message
+  if (userProfile.status !== 'approved') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Awaiting Approval</h2>
+            <p className="text-gray-600 mb-4">
+              Your profile is currently under review by the admin. Please wait for approval to access your dashboard.
+            </p>
+            <Button onClick={logout} variant="outline">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -99,7 +104,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">H.T Number</p>
-                  <p className="text-lg font-bold text-blue-600">{userProfile.htno || 'Not Set'}</p>
+                  <p className="text-lg font-bold text-blue-600">{userProfile.ht_no || 'Not Set'}</p>
                 </div>
                 <User className="w-8 h-8 text-blue-600" />
               </div>
@@ -122,10 +127,10 @@ const StudentDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Attendance</p>
-                  <p className="text-lg font-bold text-orange-600">85%</p>
+                  <p className="text-sm font-medium text-gray-600">Status</p>
+                  <p className="text-lg font-bold text-green-600 capitalize">{userProfile.status}</p>
                 </div>
-                <Clock className="w-8 h-8 text-orange-600" />
+                <Trophy className="w-8 h-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
@@ -134,10 +139,10 @@ const StudentDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">CGPA</p>
-                  <p className="text-lg font-bold text-purple-600">8.5</p>
+                  <p className="text-sm font-medium text-gray-600">Attendance</p>
+                  <p className="text-lg font-bold text-orange-600">85%</p>
                 </div>
-                <Trophy className="w-8 h-8 text-purple-600" />
+                <Clock className="w-8 h-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
@@ -179,27 +184,27 @@ const StudentDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <BookOpen className="w-5 h-5" />
-                <span>Recent Results</span>
+                <span>Profile Information</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">Semester 5</p>
-                    <p className="text-sm text-gray-600">SGPA: 8.7</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-green-600 font-semibold">Passed</p>
+                    <p className="font-medium">Name</p>
+                    <p className="text-sm text-gray-600">{userProfile.student_name}</p>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">Semester 4</p>
-                    <p className="text-sm text-gray-600">SGPA: 8.3</p>
+                    <p className="font-medium">Hall Ticket</p>
+                    <p className="text-sm text-gray-600">{userProfile.ht_no}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-green-600 font-semibold">Passed</p>
+                </div>
+                <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Year</p>
+                    <p className="text-sm text-gray-600">{userProfile.year}</p>
                   </div>
                 </div>
               </div>

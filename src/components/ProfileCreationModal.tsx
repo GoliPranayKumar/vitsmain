@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +38,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
     
     try {
       await createProfile({
-        htno: formData.htno,
+        htno: formData.htno, // This will be mapped to ht_no in the context
         student_name: formData.student_name,
         year: parseInt(formData.year)
       });
@@ -47,6 +47,9 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
         title: "Profile Created",
         description: "Your profile has been submitted for admin approval.",
       });
+      
+      // Reset form
+      setFormData({ htno: '', student_name: '', year: '' });
     } catch (error) {
       toast({
         title: "Error",
@@ -63,6 +66,9 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create Your Profile</DialogTitle>
+          <DialogDescription>
+            Complete your student profile to access the dashboard
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

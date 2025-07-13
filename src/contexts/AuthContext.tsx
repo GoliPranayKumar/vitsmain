@@ -5,10 +5,19 @@ import { Session, User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 
+interface UserProfile {
+  id: string;
+  role: string;
+  status: string;
+  student_name: string | null;
+  ht_no: string | null;
+  year: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  userProfile: any;
+  userProfile: UserProfile | null;
   loading: boolean;
   needsProfileCreation: boolean;
   login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
@@ -28,7 +37,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -45,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          console.log('User logged in, loading profile...');
+          console.log('User authenticated, loading profile...');
           // Use setTimeout to avoid blocking the auth state change
           setTimeout(() => {
             loadUserProfile(session.user.id);
@@ -91,6 +100,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Profile query result:', { data, error });
 
+      if (error && error.code === 'PGRST116') {
+        // No profile found, check if user needs to create one
+        console.log('No profile found, checking if profile creation needed');
+        setUserProfile(null);
+        setNeedsProfileCreation(true);
+        setLoading(false);
+        return;
+      }
+
       if (error) {
         console.error('Error loading profile:', error);
         setUserProfile(null);
@@ -108,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentPath = window.location.pathname;
         console.log('Current path:', currentPath, 'User role:', data.role, 'Status:', data.status);
         
-        // Only redirect if we're on the home page to avoid interfering with direct navigation
+        // Only redirect if we're on the home page
         if (currentPath === '/') {
           if (data.role === 'admin') {
             console.log('Redirecting admin to admin dashboard');
@@ -118,13 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLocation('/student-dashboard');
           } else if (data.role === 'student' && data.status === 'pending') {
             console.log('Student pending approval, staying on main page');
-            // Student stays on main page
+            // Student stays on main page with pending status
           }
         }
-      } else {
-        console.log('No profile found, needs creation');
-        setUserProfile(null);
-        setNeedsProfileCreation(true);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -186,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Signup successful:', data);
 
       if (data.user) {
-        // Create initial profile
+        // Create initial profile with correct column names
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert({
@@ -227,10 +241,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Creating profile for user:', user.id, profileData);
 
     try {
+      // Use correct column name 'ht_no' instead of 'htno'
       const { error } = await supabase
         .from('user_profiles')
         .update({
-          ...profileData,
+          ht_no: profileData.htno, // Map htno to ht_no
+          student_name: profileData.student_name,
+          year: profileData.year.toString(),
           status: 'pending',
         })
         .eq('id', user.id);

@@ -51,9 +51,11 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
         console.log('Login successful');
       }
 
-      // Reset form and close modal on success
-      resetForm();
-      onClose();
+      // Reset form and close modal after a short delay to allow auth state to update
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 500);
     } catch (error: any) {
       console.error('Authentication failed:', error);
       setError(error.message || 'Authentication failed. Please try again.');
