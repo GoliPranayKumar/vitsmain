@@ -159,7 +159,7 @@ const Hero = () => {
               <h4 className="font-semibold text-gray-900 mb-2">Address</h4>
               <p className="text-gray-600 text-center">
                 Vignan's Institute of Information Technology<br />
-                Visakhapatnam, Andhra Pradesh, India
+                Deshmukhi,Hyderabad, India
               </p>
             </div>
             <div className="flex flex-col items-center">
@@ -327,7 +327,7 @@ const Hero = () => {
           
           <div className="space-y-4">
             <p className="text-gray-600 mb-6">
-              Our AI & Data Science program is designed to achieve the following 12 Program Outcomes:
+              Our Artificial Intelligence & Data Science program is designed to achieve the following 12 Program Outcomes:
             </p>
             
             <Accordion type="single" collapsible className="w-full">
