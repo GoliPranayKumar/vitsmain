@@ -17,7 +17,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   userType: 'student' | 'admin';
-  onOpenCreateProfile?: () => void; // For students to open ProfileCreationModal
+  onOpenCreateProfile?: () => void;
 }
 
 const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginModalProps) => {
@@ -165,7 +165,6 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
                 : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
 
-            {/* Admin toggle */}
             {userType === 'admin' && (
               <div className="text-center">
                 <button
@@ -183,14 +182,13 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
               </div>
             )}
 
-            {/* Student "Create Profile" trigger */}
             {userType === 'student' && (
               <div className="text-center">
                 <button
                   type="button"
                   onClick={() => {
                     handleClose();
-                    onOpenCreateProfile?.(); // ✅ trigger parent modal
+                    onOpenCreateProfile?.();
                   }}
                   className="text-sm text-blue-600 hover:text-blue-800"
                   disabled={isLoading}
