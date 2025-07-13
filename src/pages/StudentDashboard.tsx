@@ -134,7 +134,7 @@ const StudentDashboard = () => {
           {photoUrl ? (
             <img src={photoUrl} className="w-full h-full rounded-full object-cover" />
           ) : (
-            getInitials(userProfile.full_name || '')
+            getInitials(userProfile.student_name || '')
           )}
           <Pencil
             size={16}
@@ -149,7 +149,7 @@ const StudentDashboard = () => {
           />
         </div>
         <div>
-          <h2 className="text-lg font-semibold">{userProfile.full_name}</h2>
+          <h2 className="text-lg font-semibold">{userProfile.student_name}</h2>
           <p className="text-sm text-muted-foreground">{userProfile.ht_no}</p>
         </div>
       </div>
@@ -173,7 +173,7 @@ const StudentDashboard = () => {
 
         <TabsContent value="profile">
           <Card><CardContent className="p-6 grid grid-cols-2 gap-4">
-            <p><strong>Full Name:</strong> {userProfile.full_name}</p>
+            <p><strong>Full Name:</strong> {userProfile.student_name}</p>
             <p><strong>Email:</strong> {userProfile.email}</p>
             <p><strong>Phone:</strong> {userProfile.phone}</p>
             <p><strong>Year:</strong> {userProfile.year}</p>
