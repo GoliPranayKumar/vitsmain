@@ -33,10 +33,24 @@ export const useAuth = () => {
   return context;
 };
 
-const DEMO_EMAILS = [
-  'student@vignanits.ac.in',
-  'admin@vignanits.ac.in'
-];
+const DEMO_USERS = {
+  'student@vignanits.ac.in': {
+    id: 'demo-student',
+    role: 'student',
+    status: 'approved',
+    student_name: 'Demo Student',
+    ht_no: '22A91A0001',
+    year: '3',
+  },
+  'admin@vignanits.ac.in': {
+    id: 'demo-admin',
+    role: 'admin',
+    status: 'approved',
+    student_name: null,
+    ht_no: null,
+    year: null,
+  },
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -49,23 +63,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [, setLocation] = useLocation();
 
   const handleRedirection = (profile: UserProfile) => {
-    console.log('Redirecting based on profile:', profile);
     if (profile.role === 'admin') {
       setLocation('/admin-dashboard');
-    } else if (profile.role === 'student' && profile.status === 'approved') {
-      setLocation('/student-dashboard');
-    } else {
-      setLocation('/');
+    } else if (profile.role === 'student') {
+      if (profile.status === 'approved') {
+        setLocation('/student-dashboard');
+      } else {
+        setLocation('/');
+      }
     }
   };
 
-  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const loadUserProfile = async (userId: string, email: string): Promise<UserProfile | null> => {
+    if (email in DEMO_USERS) {
+      const demoProfile = DEMO_USERS[email];
+      setUserProfile(demoProfile);
+      setNeedsProfileCreation(false);
+      return demoProfile;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      const { data, error } = await supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle();
 
       if (error) {
         console.error('Error loading profile:', error);
@@ -76,13 +94,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         setUserProfile(null);
-        const isDemo = DEMO_EMAILS.includes(user?.email ?? '');
         const isStudent = user?.user_metadata?.role === 'student';
-        setNeedsProfileCreation(redirectPending && !isDemo && isStudent);
+        setNeedsProfileCreation(redirectPending && isStudent);
         return null;
       }
 
-      console.log('Loaded user profile:', data);
       setUserProfile(data);
       setNeedsProfileCreation(false);
       return data;
@@ -101,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          loadUserProfile(session.user.id).then((profile) => {
+          loadUserProfile(session.user.id, session.user.email ?? '').then((profile) => {
             if (redirectPending && profile) {
               handleRedirection(profile);
               setRedirectPending(false);
@@ -122,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id, session.user.email ?? '');
         } else {
           setNeedsProfileCreation(false);
         }
@@ -141,19 +157,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('Session data after login:', data);
       if (error) throw error;
 
       setRedirectPending(true);
 
       if (data.user) {
         toast({ title: 'Login successful', description: 'Welcome back!' });
-
-        const profile = await loadUserProfile(data.user.id);
-        if (profile) {
-          handleRedirection(profile);
-          setRedirectPending(false);
-        }
       }
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -219,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      await loadUserProfile(user.id);
+      await loadUserProfile(user.id, user.email ?? '');
 
       toast({
         title: 'Profile submitted',
@@ -243,10 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRedirectPending(false);
       setLocation('/');
 
-      toast({
-        title: 'Logged out',
-        description: 'You have been signed out.',
-      });
+      toast({ title: 'Logged out', description: 'You have been signed out.' });
     } catch (error) {
       console.error('Logout error:', error);
     }
