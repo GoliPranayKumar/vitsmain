@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -67,26 +67,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error loading profile:', error);
         setUserProfile(null);
         setNeedsProfileCreation(false);
-        return;
+        return null;
       }
 
       if (!data) {
         setUserProfile(null);
         setNeedsProfileCreation(redirectPending);
-        return;
+        return null;
       }
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
-
-      if (redirectPending) {
-        handleRedirection(data);
-        setRedirectPending(false);
-      }
+      return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
       setUserProfile(null);
       setNeedsProfileCreation(false);
+      return null;
     }
   };
 
@@ -97,9 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          loadUserProfile(session.user.id).finally(() => {
-            setLoading(false);
-          });
+          loadUserProfile(session.user.id).then((profile) => {
+            if (redirectPending && profile) {
+              handleRedirection(profile);
+              setRedirectPending(false);
+            }
+          }).finally(() => setLoading(false));
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [redirectPending]);
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
