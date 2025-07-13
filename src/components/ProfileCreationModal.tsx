@@ -21,9 +21,13 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProfileCreationModalProps {
   open: boolean;
+  onOpenChange: (open: boolean) => void; // <-- Added this prop
 }
 
-const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => {
+const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
+  open,
+  onOpenChange,
+}) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
@@ -109,6 +113,9 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
         student_name: '',
         year: '',
       });
+
+      // Optionally close modal on success:
+      onOpenChange(false);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -121,7 +128,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create Your Profile</DialogTitle>
@@ -134,6 +141,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               value={formData.email}
               onChange={(e) =>
@@ -141,6 +149,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
               }
               placeholder="Enter your email"
               required
+              autoComplete="email"
             />
           </div>
 
@@ -148,6 +157,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Label htmlFor="password">Create Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               value={formData.password}
               onChange={(e) =>
@@ -155,6 +165,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
               }
               placeholder="Create a password"
               required
+              autoComplete="new-password"
             />
           </div>
 
@@ -162,12 +173,14 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Label htmlFor="ht_no">Hall Ticket Number (H.T No.)</Label>
             <Input
               id="ht_no"
+              name="ht_no"
               value={formData.ht_no}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, ht_no: e.target.value }))
               }
               placeholder="e.g., 2X891A72XX"
               required
+              autoComplete="off"
             />
           </div>
 
@@ -175,12 +188,14 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Label htmlFor="student_name">Student Name</Label>
             <Input
               id="student_name"
+              name="student_name"
               value={formData.student_name}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, student_name: e.target.value }))
               }
               placeholder="Your full name"
               required
+              autoComplete="name"
             />
           </div>
 
@@ -192,7 +207,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
                 setFormData((prev) => ({ ...prev, year: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="year" aria-label="Select Year">
                 <SelectValue placeholder="Select your year" />
               </SelectTrigger>
               <SelectContent>
