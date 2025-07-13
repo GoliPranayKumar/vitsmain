@@ -49,14 +49,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [, setLocation] = useLocation();
 
   const handleRedirection = (profile: UserProfile) => {
+    console.log('Redirecting based on profile:', profile);
     if (profile.role === 'admin') {
       setLocation('/admin-dashboard');
-    } else if (profile.role === 'student') {
-      if (profile.status === 'approved') {
-        setLocation('/student-dashboard');
-      } else {
-        setLocation('/');
-      }
+    } else if (profile.role === 'student' && profile.status === 'approved') {
+      setLocation('/student-dashboard');
+    } else {
+      setLocation('/');
     }
   };
 
@@ -76,13 +75,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!data) {
+        setUserProfile(null);
         const isDemo = DEMO_EMAILS.includes(user?.email ?? '');
         const isStudent = user?.user_metadata?.role === 'student';
-        setUserProfile(null);
         setNeedsProfileCreation(redirectPending && !isDemo && isStudent);
         return null;
       }
 
+      console.log('Loaded user profile:', data);
       setUserProfile(data);
       setNeedsProfileCreation(false);
       return data;
@@ -122,8 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const profile = await loadUserProfile(session.user.id);
-          if (redirectPending && profile) handleRedirection(profile);
+          await loadUserProfile(session.user.id);
         } else {
           setNeedsProfileCreation(false);
         }
@@ -142,12 +141,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Session data after login:', data);
       if (error) throw error;
 
       setRedirectPending(true);
 
       if (data.user) {
         toast({ title: 'Login successful', description: 'Welcome back!' });
+
+        const profile = await loadUserProfile(data.user.id);
+        if (profile) {
+          handleRedirection(profile);
+          setRedirectPending(false);
+        }
       }
     } catch (error: any) {
       console.error('Login failed:', error);
