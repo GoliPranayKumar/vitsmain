@@ -15,7 +15,7 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppRoutes: React.FC = () => {
-  const { needsProfileCreation, loading } = useAuth();
+  const { needsProfileCreation, loading, user } = useAuth();
 
   // Show loading while auth is initializing
   if (loading) {
@@ -37,7 +37,10 @@ const AppRoutes: React.FC = () => {
         <Route path="/student-dashboard" component={StudentDashboard} />
         <Route component={NotFound} />
       </Switch>
-      <ProfileCreationModal open={needsProfileCreation} />
+      {/* Only show profile creation modal if user exists and needs profile creation */}
+      {user && needsProfileCreation && (
+        <ProfileCreationModal open={needsProfileCreation} />
+      )}
     </>
   );
 };
