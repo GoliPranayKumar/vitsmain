@@ -11,6 +11,7 @@ interface UserProfile {
   student_name: string | null;
   ht_no: string | null;
   year: string | null;
+  email?: string | null;
 }
 
 interface AuthContextType {
@@ -45,40 +46,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
+
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // Fetch user profile by auth user id
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
-      console.log('🔍 Fetching user profile for:', userId);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) console.error('❌ Profile fetch error:', error);
-      else console.log('✅ Profile fetched:', data);
-
+      if (error) {
+        console.error('Error loading user profile:', error);
+        return null;
+      }
       return data || null;
-    } catch (err) {
-      console.error('❌ Error loading profile:', err);
+    } catch (error) {
+      console.error('Unexpected error loading user profile:', error);
       return null;
     }
   };
 
+  // Initialize auth on app load
   useEffect(() => {
     let isMounted = true;
 
     const initAuth = async () => {
+      setLoading(true);
       try {
-        console.log('🚀 Initializing auth...');
         const { data } = await supabase.auth.getSession();
         const currentSession = data.session;
 
-        console.log('🧾 Session:', currentSession);
-
         if (!isMounted) return;
+
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
@@ -96,20 +99,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setNeedsProfileCreation(false);
         }
       } catch (error) {
-        console.error('❌ Auth init failed:', error);
+        console.error('Failed to initialize auth:', error);
         setUser(null);
         setUserProfile(null);
         setNeedsProfileCreation(false);
       } finally {
         if (isMounted) setLoading(false);
-        console.log('✅ Auth initialized. Loading = false');
       }
     };
 
     initAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('🔄 Auth state changed:', session);
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -134,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Login function
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -172,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // SignUp function (student and admin)
   const signUp = async (
     email: string,
     password: string,
@@ -195,7 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             },
           };
         }
-
         verified = data;
       }
 
@@ -240,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Create profile (for student after signup)
   const createProfile = async (profileData: {
     ht_no: string;
     student_name: string;
@@ -271,6 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const closeProfileCreationModal = () => setNeedsProfileCreation(false);
 
+  // Logout function
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
