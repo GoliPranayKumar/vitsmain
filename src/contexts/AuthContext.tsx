@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Setting up auth state listener');
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
         setSession(session);
@@ -111,30 +111,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User authenticated, loading profile...');
-          await loadUserProfile(session.user.id);
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(() => {
+            loadUserProfile(session.user.id).finally(() => {
+              setLoading(false);
+            });
+          }, 0);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
           setNeedsProfileCreation(false);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
     // Get initial session
     const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Initial session check:', session?.user?.email);
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial session check:', session?.user?.email);
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     initializeAuth();
