@@ -16,7 +16,7 @@ const queryClient = new QueryClient();
 const AppRoutes: React.FC = () => {
   const { user, loading, needsProfileCreation } = useAuth();
 
-  // Show loading while auth is initializing
+  // Show loading spinner while authentication is being checked
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -28,8 +28,8 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  // ✅ Only show modal after login and loading complete
-  const showModal = !!user && !loading && needsProfileCreation;
+  // Show ProfileCreationModal ONLY if user is logged in AND needs to create a profile
+  const showProfileCreationModal = !!user && needsProfileCreation;
 
   return (
     <>
@@ -40,7 +40,7 @@ const AppRoutes: React.FC = () => {
         <Route component={NotFound} />
       </Switch>
 
-      {showModal && (
+      {showProfileCreationModal && (
         <ProfileCreationModal open={true} />
       )}
     </>
