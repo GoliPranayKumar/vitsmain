@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [manuallyLoggedIn, setManuallyLoggedIn] = useState(false);
+  const [redirectPending, setRedirectPending] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -72,16 +72,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         setUserProfile(null);
-        setNeedsProfileCreation(manuallyLoggedIn);
+        setNeedsProfileCreation(true);
         return;
       }
 
       setUserProfile(data);
       setNeedsProfileCreation(false);
 
-      if (manuallyLoggedIn) {
+      if (redirectPending) {
         handleRedirection(data);
-        setManuallyLoggedIn(false);
+        setRedirectPending(false);
       }
     } catch (error) {
       console.error('Exception loading user profile:', error);
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      setManuallyLoggedIn(true);
+      setRedirectPending(true);
 
       if (data.user) {
         toast({ title: 'Login successful', description: 'Welcome back!' });
@@ -226,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setUserProfile(null);
       setNeedsProfileCreation(false);
-      setManuallyLoggedIn(false);
+      setRedirectPending(false);
       setLocation('/');
 
       toast({
