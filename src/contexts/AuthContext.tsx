@@ -48,12 +48,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  /**
-   * Load user profile from Supabase 'user_profiles' table.
-   * Returns profile data or null if none found.
-   * Updates needsProfileCreation accordingly.
-   */
+  // Debug helper to trace flow
+  const debugLog = (...args: any[]) => {
+    // Remove or comment this line if you want quiet logs
+    console.log('[AuthContext]', ...args);
+  };
+
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+    debugLog('Loading user profile for userId:', userId);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -62,41 +64,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading user profile:', error);
+        debugLog('Error loading user profile:', error);
         setNeedsProfileCreation(true);
         return null;
       }
 
       if (!data) {
-        // No profile found → user must create one
+        debugLog('No user profile found, user needs to create profile');
         setNeedsProfileCreation(true);
         return null;
       }
 
+      debugLog('User profile loaded:', data);
       setNeedsProfileCreation(false);
       return data;
     } catch (err) {
-      console.error('Exception loading user profile:', err);
+      debugLog('Exception loading user profile:', err);
       setNeedsProfileCreation(true);
       return null;
     }
   };
 
-  /**
-   * Initialize authentication session and subscribe to auth changes.
-   * Avoids updating state after unmount by using isMounted flag.
-   */
   useEffect(() => {
     let isMounted = true;
+    let listenerSubscription: any = null;
 
     const initAuth = async () => {
+      debugLog('Initializing auth...');
       setLoading(true);
       try {
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession();
 
+        if (error) {
+          debugLog('Error fetching initial session:', error);
+          return;
+        }
+
         if (!isMounted) return;
+
+        debugLog('Initial session:', session);
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -104,13 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           const profile = await loadUserProfile(session.user.id);
           if (!isMounted) return;
+
           setUserProfile(profile);
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        debugLog('Exception in initAuth:', error);
         setUserProfile(null);
         setNeedsProfileCreation(false);
       } finally {
@@ -120,8 +130,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Subscribe to auth state changes (sign in/out)
+    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      debugLog('Auth state changed:', _event, session);
       if (!isMounted) return;
 
       setSession(session);
@@ -136,23 +147,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    listenerSubscription = listener?.subscription;
+
     return () => {
       isMounted = false;
-      listener.subscription.unsubscribe();
+      if (listenerSubscription) listenerSubscription.unsubscribe();
+      debugLog('Auth context unmounted and listener unsubscribed');
     };
   }, []);
 
-  /**
-   * Login user using email & password.
-   * Redirects based on role & approval status.
-   * Shows toast messages for feedback.
-   */
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
+      debugLog('Attempting login for', email, 'as', userType);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (data.user) {
+        debugLog('Login successful, loading profile...');
         const profile = await loadUserProfile(data.user.id);
         setUser(data.user);
         setUserProfile(profile);
@@ -177,16 +188,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast({ title: 'Login successful', description: 'Welcome back!' });
       }
     } catch (err: any) {
+      debugLog('Login failed:', err);
       toast({ title: 'Login failed', description: err.message || 'Unknown error' });
       throw err;
     }
   };
 
-  /**
-   * Sign up user with role and optional ht_no for students.
-   * Verifies student ht_no against verified_students table.
-   * Inserts user profile after signup.
-   */
   const signUp = async (
     email: string,
     password: string,
@@ -194,6 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ht_no?: string
   ): Promise<{ error: any }> => {
     try {
+      debugLog('Signing up user:', email, userType, ht_no);
       let verified: any = null;
 
       if (userType === 'student') {
@@ -204,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle();
 
         if (verifyError || !data) {
+          debugLog('Verification failed for ht_no:', ht_no, verifyError);
           return {
             error: {
               message: 'Hall ticket not found in verified students. Contact admin.',
@@ -240,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
 
         if (insertError) {
-          console.error('Error inserting user profile:', insertError);
+          debugLog('Error inserting user profile:', insertError);
           return { error: insertError };
         }
 
@@ -255,21 +264,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error: any) {
-      console.error('Signup failed:', error);
+      debugLog('Signup failed:', error);
       return { error };
     }
   };
 
-  /**
-   * Create or update user profile after signup.
-   * Sets status to 'pending' for admin approval.
-   */
   const createProfile = async (profileData: {
     ht_no: string;
     student_name: string;
     year: string;
   }) => {
     if (!user) throw new Error('User not authenticated');
+
+    debugLog('Creating/updating profile:', profileData);
 
     const { error } = await supabase
       .from('user_profiles')
@@ -281,7 +288,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .eq('id', user.id);
 
-    if (error) throw error;
+    if (error) {
+      debugLog('Error updating profile:', error);
+      throw error;
+    }
 
     const updated = await loadUserProfile(user.id);
     setUserProfile(updated);
@@ -293,17 +303,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  /**
-   * Close the profile creation modal forcibly (e.g. user cancels)
-   */
   const closeProfileCreationModal = () => {
+    debugLog('Profile creation modal closed by user');
     setNeedsProfileCreation(false);
   };
 
-  /**
-   * Logout the user, reset all states, redirect to homepage.
-   */
   const logout = async () => {
+    debugLog('Logging out...');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
