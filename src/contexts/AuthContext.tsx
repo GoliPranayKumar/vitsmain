@@ -56,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setNeedsProfileCreation(false);
-      setUserProfile(data);
       return data;
     } catch (error) {
       console.error('Exception loading user profile:', error);
@@ -65,43 +64,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let unsubscribed = false;
 
-        if (session?.user) {
-          const profile = await loadUserProfile(session.user.id);
-          setUserProfile(profile);
-        } else {
-          setUserProfile(null);
-          setNeedsProfileCreation(false);
-        }
+    const syncSession = async () => {
+      setLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        setLoading(false); // ✅ Make sure this always runs
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        if (!unsubscribed) setUserProfile(profile);
+      } else {
+        setUserProfile(null);
+        setNeedsProfileCreation(false);
       }
-    );
 
-    const initialize = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          const profile = await loadUserProfile(session.user.id);
-          setUserProfile(profile);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setLoading(false); // ✅ avoid hanging loading
-      }
+      if (!unsubscribed) setLoading(false);
     };
 
-    initialize();
+    syncSession();
 
-    return () => subscription.unsubscribe();
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        setUserProfile(profile);
+      } else {
+        setUserProfile(null);
+        setNeedsProfileCreation(false);
+      }
+    });
+
+    return () => {
+      unsubscribed = true;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
@@ -110,9 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (data.user) {
       const profile = await loadUserProfile(data.user.id);
+      setUser(data.user);
       setUserProfile(profile);
 
-      // ✅ Redirect only after login succeeds
       if (profile?.role === 'admin') {
         setLocation('/admin-dashboard');
       } else if (profile?.role === 'student') {
