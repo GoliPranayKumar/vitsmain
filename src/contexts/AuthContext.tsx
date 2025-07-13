@@ -50,6 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .maybeSingle();
 
+      console.log('🔍 profile query result:', { data, error });
+
       if (error || !data) {
         setNeedsProfileCreation(true);
         return null;
@@ -58,37 +60,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsProfileCreation(false);
       return data;
     } catch (error) {
-      console.error('Exception loading user profile:', error);
+      console.error('❌ Exception loading user profile:', error);
       return null;
     }
   };
 
-  useEffect(() => {
-    let unsubscribed = false;
+  const initializeSession = async () => {
+    try {
+      console.log('⚡ Initializing auth...');
+      const { data: { session } } = await supabase.auth.getSession();
 
-    const syncSession = async () => {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        if (!unsubscribed) setUserProfile(profile);
-      } else {
-        setUserProfile(null);
-        setNeedsProfileCreation(false);
-      }
-
-      if (!unsubscribed) setLoading(false);
-    };
-
-    syncSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -99,11 +80,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(null);
         setNeedsProfileCreation(false);
       }
-    });
+    } catch (error) {
+      console.error('❌ Error initializing session:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    initializeSession();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        console.log('🔄 Auth state changed:', _event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const profile = await loadUserProfile(session.user.id);
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+          setNeedsProfileCreation(false);
+        }
+      }
+    );
 
     return () => {
-      unsubscribed = true;
-      listener.subscription.unsubscribe();
+      subscription.subscription.unsubscribe();
     };
   }, []);
 
@@ -192,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error: any) {
-      console.error('Signup failed:', error);
+      console.error('❌ Signup failed:', error);
       return { error };
     }
   };
