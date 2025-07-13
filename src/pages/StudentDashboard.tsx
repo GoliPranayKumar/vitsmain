@@ -1,6 +1,7 @@
 // src/pages/StudentDashboard.tsx
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocation } from 'wouter';
