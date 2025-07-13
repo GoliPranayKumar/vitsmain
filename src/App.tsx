@@ -14,8 +14,20 @@ import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 
-const AppContent: React.FC = () => {
-  const { needsProfileCreation } = useAuth();
+const AppRoutes: React.FC = () => {
+  const { needsProfileCreation, loading } = useAuth();
+
+  // Show loading while auth is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -37,7 +49,7 @@ const App: React.FC = () => {
         <AuthProvider>
           <Toaster />
           <Sonner />
-          <AppContent />
+          <AppRoutes />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

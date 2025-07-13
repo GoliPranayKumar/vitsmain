@@ -101,10 +101,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Profile query result:', { data, error });
 
       if (error && error.code === 'PGRST116') {
-        // No profile found, check if user needs to create one
+        // No profile found, but only show profile creation for students
         console.log('No profile found, checking if profile creation needed');
         setUserProfile(null);
-        setNeedsProfileCreation(true);
+        // Don't automatically show profile creation modal
+        setNeedsProfileCreation(false);
         setLoading(false);
         return;
       }
@@ -112,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error loading profile:', error);
         setUserProfile(null);
-        setNeedsProfileCreation(true);
+        setNeedsProfileCreation(false);
         setLoading(false);
         return;
       }
@@ -143,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUserProfile(null);
-      setNeedsProfileCreation(true);
+      setNeedsProfileCreation(false);
     } finally {
       setLoading(false);
     }
@@ -241,11 +242,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Creating profile for user:', user.id, profileData);
 
     try {
-      // Use correct column name 'ht_no' instead of 'htno'
       const { error } = await supabase
         .from('user_profiles')
         .update({
-          ht_no: profileData.htno, // Map htno to ht_no
+          ht_no: profileData.ht_no,
           student_name: profileData.student_name,
           year: profileData.year.toString(),
           status: 'pending',
