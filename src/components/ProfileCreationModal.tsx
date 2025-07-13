@@ -30,8 +30,6 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
 }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
     ht_no: '',
     student_name: '',
     year: '',
@@ -40,13 +38,12 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { ht_no, student_name, year } = formData;
 
-    const { email, password, ht_no, student_name, year } = formData;
-
-    if (!email || !password || !ht_no || !student_name || !year) {
+    if (!ht_no || !student_name || !year) {
       toast({
-        title: 'Error',
-        description: 'Please fill in all fields.',
+        title: 'Missing Fields',
+        description: 'Please fill in all required fields.',
         variant: 'destructive',
       });
       return;
@@ -55,11 +52,11 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 1. Verify student in verified_students
+      // 1. Check if in verified_students
       const { data: verified, error: verifyError } = await supabase
         .from('verified_students')
         .select('*')
-        .eq('roll_number', ht_no)
+        .eq('ht_no', ht_no)
         .eq('student_name', student_name)
         .eq('year', parseInt(year))
         .maybeSingle();
@@ -67,55 +64,42 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
       if (verifyError || !verified) {
         toast({
           title: 'Verification Failed',
-          description: 'You are not listed in verified students. Please contact admin.',
+          description: 'You are not listed in verified students.',
           variant: 'destructive',
         });
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Sign up user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { role: 'student' },
-        },
-      });
+      // 2. Update user_profiles with profile info
+      const {
+        data: { user },
+        error: sessionError,
+      } = await supabase.auth.getUser();
 
-      if (signUpError || !authData.user) {
-        throw signUpError || new Error('Signup failed. Try again.');
+      if (!user || sessionError) {
+        throw new Error('Unable to get current user');
       }
 
-      const userId = authData.user.id;
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          ht_no,
+          student_name,
+          year: parseInt(year),
+          status: 'pending',
+        })
+        .eq('id', user.id);
 
-      // 3. Insert profile
-      const { error: insertError } = await supabase.from('user_profiles').insert({
-        id: userId,
-        ht_no,
-        student_name,
-        year: parseInt(year),
-        role: 'student',
-        status: 'pending',
-      });
-
-      if (insertError) throw insertError;
+      if (updateError) throw updateError;
 
       toast({
-        title: 'Profile Created',
-        description: 'Your profile has been submitted for admin approval.',
+        title: 'Profile Submitted',
+        description: 'Your profile is pending admin approval.',
       });
 
-      setFormData({
-        email: '',
-        password: '',
-        ht_no: '',
-        student_name: '',
-        year: '',
-      });
-
-      // Close modal on success
-      onOpenChange(false);
+      setFormData({ ht_no: '', student_name: '', year: '' });
+      onOpenChange(false); // close modal
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -133,51 +117,18 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
         <DialogHeader>
           <DialogTitle>Create Your Profile</DialogTitle>
           <DialogDescription>
-            Verify yourself using official details and set your account credentials.
+            Please verify yourself using official details.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, email: e.target.value }))
-              }
-              placeholder="Enter your email"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="password">Create Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, password: e.target.value }))
-              }
-              placeholder="Create a password"
-              required
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="ht_no">Hall Ticket Number (H.T No.)</Label>
+            <Label htmlFor="ht_no">Hall Ticket Number (HT No.)</Label>
             <Input
               id="ht_no"
               name="ht_no"
               value={formData.ht_no}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, ht_no: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, ht_no: e.target.value }))}
               placeholder="e.g., 2X891A72XX"
               required
               autoComplete="off"
@@ -190,9 +141,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
               id="student_name"
               name="student_name"
               value={formData.student_name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, student_name: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, student_name: e.target.value }))}
               placeholder="Your full name"
               required
               autoComplete="name"
@@ -203,9 +152,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
             <Label htmlFor="year">Year</Label>
             <Select
               value={formData.year}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, year: value }))
-              }
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, year: value }))}
             >
               <SelectTrigger id="year" aria-label="Select Year">
                 <SelectValue placeholder="Select your year" />
@@ -220,7 +167,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating Profile...' : 'Create Profile'}
+            {isSubmitting ? 'Submitting...' : 'Submit Profile'}
           </Button>
         </form>
       </DialogContent>
