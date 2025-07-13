@@ -1,8 +1,9 @@
+
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Calendar, BookOpen, Trophy, Clock } from 'lucide-react';
+import { LogOut, User, Calendar, BookOpen, Trophy, Clock, X } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 const StudentDashboard = () => {
@@ -10,25 +11,56 @@ const StudentDashboard = () => {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (userProfile && userProfile.status !== 'approved') {
+    console.log('StudentDashboard: Checking user access', { userProfile });
+    if (userProfile && (userProfile.role !== 'student' || userProfile.status !== 'approved')) {
+      console.log('User is not approved student, redirecting to home');
       setLocation('/');
+      return;
     }
   }, [userProfile, setLocation]);
 
-  if (!userProfile || userProfile.status !== 'approved') {
+  // Show loading while checking authentication
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>b
+      </div>
+    );
+  }
+
+  // Show pending approval message
+  if (userProfile.role !== 'student' || userProfile.status !== 'approved') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Awaiting Approval</h2>
-            <p className="text-gray-600 mb-4">
-              Your profile is currently under review by the admin. Please wait for approval to access your dashboard.
-            </p>
-            <Button onClick={logout} variant="outline">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            {userProfile.role !== 'student' ? (
+              <>
+                <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+                <p className="text-gray-600 mb-4">
+                  You don't have student privileges to access this page.
+                </p>
+                <Button onClick={() => setLocation('/')} variant="outline">
+                  Go Home
+                </Button>
+              </>
+            ) : (
+              <>
+                <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Awaiting Approval</h2>
+                <p className="text-gray-600 mb-4">
+                  Your profile is currently under review by the admin. Please wait for approval to access your dashboard.
+                </p>
+                <Button onClick={logout} variant="outline">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

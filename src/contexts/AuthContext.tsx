@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     console.log('Setting up auth state listener');
@@ -45,9 +45,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User logged in, loading profile...');
+          // Use setTimeout to avoid blocking the auth state change
           setTimeout(() => {
             loadUserProfile(session.user.id);
-          }, 0);
+          }, 100);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
@@ -96,20 +97,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        console.log('Profile loaded:', data);
+        console.log('Profile loaded successfully:', data);
         setUserProfile(data);
         setNeedsProfileCreation(false);
         
-        // Redirect based on role and status
-        if (data.role === 'admin') {
-          console.log('Admin user detected, redirecting to admin dashboard');
-          setTimeout(() => setLocation('/admin-dashboard'), 100);
-        } else if (data.role === 'student' && data.status === 'approved') {
-          console.log('Approved student, redirecting to student dashboard');
-          setTimeout(() => setLocation('/student-dashboard'), 100);
-        } else if (data.role === 'student' && data.status === 'pending') {
-          console.log('Student pending approval, staying on main page');
-          // Student stays on main page
+        // Handle redirection based on role and current location
+        console.log('Current location:', location);
+        console.log('User role:', data.role, 'Status:', data.status);
+        
+        // Only redirect if we're on the home page (to avoid interfering with direct navigation)
+        if (location === '/') {
+          if (data.role === 'admin') {
+            console.log('Redirecting admin to admin dashboard');
+            setTimeout(() => {
+              setLocation('/admin-dashboard');
+            }, 500);
+          } else if (data.role === 'student' && data.status === 'approved') {
+            console.log('Redirecting approved student to student dashboard');
+            setTimeout(() => {
+              setLocation('/student-dashboard');
+            }, 500);
+          } else if (data.role === 'student' && data.status === 'pending') {
+            console.log('Student pending approval, staying on main page');
+            // Student stays on main page
+          }
         }
       } else {
         console.log('No profile found, needs creation');
