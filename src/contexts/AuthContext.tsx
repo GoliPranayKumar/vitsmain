@@ -55,14 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
       return error || !data ? null : data;
     } catch {
       return null;
     }
   };
 
-  // Initial Auth Load + Listener
   useEffect(() => {
     let isMounted = true;
 
@@ -79,7 +77,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const profile = await loadUserProfile(currentSession.user.id);
           setUserProfile(profile);
 
-          setNeedsProfileCreation(!profile && profile?.role !== 'admin');
+          if (!profile && currentSession.user.user_metadata?.role === 'student') {
+            setNeedsProfileCreation(true);
+          } else {
+            setNeedsProfileCreation(false);
+          }
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
@@ -104,7 +106,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await loadUserProfile(session.user.id);
         setUserProfile(profile);
 
-        setNeedsProfileCreation(!profile && profile?.role !== 'admin');
+        if (!profile && session.user.user_metadata?.role === 'student') {
+          setNeedsProfileCreation(true);
+        } else {
+          setNeedsProfileCreation(false);
+        }
       } else {
         setUserProfile(null);
         setNeedsProfileCreation(false);
@@ -117,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Login
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -156,7 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign Up
   const signUp = async (
     email: string,
     password: string,
@@ -225,7 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Create/Update Profile for students
   const createProfile = async (profileData: {
     ht_no: string;
     student_name: string;
@@ -257,7 +260,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const closeProfileCreationModal = () => setNeedsProfileCreation(false);
 
-  // Logout
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
