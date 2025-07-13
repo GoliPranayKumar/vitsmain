@@ -50,13 +50,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
+      console.log('🔍 Fetching user profile for:', userId);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-      return error || !data ? null : data;
-    } catch {
+
+      if (error) console.error('❌ Profile fetch error:', error);
+      else console.log('✅ Profile fetched:', data);
+
+      return data || null;
+    } catch (err) {
+      console.error('❌ Error loading profile:', err);
       return null;
     }
   };
@@ -66,8 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
+        console.log('🚀 Initializing auth...');
         const { data } = await supabase.auth.getSession();
         const currentSession = data.session;
+
+        console.log('🧾 Session:', currentSession);
 
         if (!isMounted) return;
         setSession(currentSession);
@@ -87,18 +96,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setNeedsProfileCreation(false);
         }
       } catch (error) {
-        console.error('Auth init failed:', error);
+        console.error('❌ Auth init failed:', error);
         setUser(null);
         setUserProfile(null);
         setNeedsProfileCreation(false);
       } finally {
         if (isMounted) setLoading(false);
+        console.log('✅ Auth initialized. Loading = false');
       }
     };
 
     initAuth();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('🔄 Auth state changed:', session);
       setSession(session);
       setUser(session?.user ?? null);
 
