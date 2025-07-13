@@ -42,7 +42,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
     if (!email || !password || !ht_no || !student_name || !year) {
       toast({
         title: 'Error',
-        description: 'Please fill in all fields',
+        description: 'Please fill in all fields.',
         variant: 'destructive',
       });
       return;
@@ -51,10 +51,32 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
     setIsSubmitting(true);
 
     try {
-      // 1. Create Supabase Auth User
+      // 1. Check in verified_students
+      const { data: verified, error: verifyError } = await supabase
+        .from('verified_students')
+        .select('*')
+        .eq('roll_number', ht_no)
+        .eq('student_name', student_name)
+        .eq('year', parseInt(year))
+        .maybeSingle();
+
+      if (verifyError || !verified) {
+        toast({
+          title: 'Verification Failed',
+          description: 'You are not listed in verified students. Please contact admin.',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Sign up user in auth
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: { role: 'student' },
+        },
       });
 
       if (signUpError || !authData.user) {
@@ -63,7 +85,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
 
       const userId = authData.user.id;
 
-      // 2. Insert into user_profiles table
+      // 3. Insert into user_profiles
       const { error: insertError } = await supabase.from('user_profiles').insert({
         id: userId,
         ht_no,
@@ -104,7 +126,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
         <DialogHeader>
           <DialogTitle>Create Your Profile</DialogTitle>
           <DialogDescription>
-            Enter your details to register and access the student dashboard.
+            Verify yourself using official details and set your account credentials.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,19 +136,23 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               placeholder="Enter your email"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Create Password</Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
-              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, password: e.target.value }))
+              }
               placeholder="Create a password"
               required
             />
@@ -137,7 +163,9 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Input
               id="ht_no"
               value={formData.ht_no}
-              onChange={(e) => setFormData((prev) => ({ ...prev, ht_no: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, ht_no: e.target.value }))
+              }
               placeholder="e.g., 2X891A72XX"
               required
             />
@@ -160,7 +188,9 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
             <Label htmlFor="year">Year</Label>
             <Select
               value={formData.year}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, year: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, year: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select your year" />
