@@ -1,246 +1,233 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { LogOut, User, Calendar, BookOpen, Trophy, Clock, FileDown, Upload, Eye, X } from 'lucide-react';
-import { useLocation } from 'wouter';
 import { supabase } from '@/integrations/supabase/client';
-
+import { useLocation } from 'wouter';
+import {
+  LogOut, User, BookOpen, Clock, FileDown, Eye, Trash2, Upload,
+} from 'lucide-react';
+import {
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Dialog, DialogContent, DialogHeader, DialogTitle,
+  Input, Label
+} from '@/components/ui';
 
 const StudentDashboard = () => {
   const { userProfile, logout, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const fileInputRef = useRef(null);
-  const [certificates, setCertificates] = useState<string[]>([]);
-  const [results, setResults] = useState<string[]>([]);
+  const [results, setResults] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [timetable, setTimetable] = useState([]);
+  const [subjectAttendance, setSubjectAttendance] = useState([]);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  const [openCertModal, setOpenCertModal] = useState(false);
+  const [certTitle, setCertTitle] = useState('');
+  const [certDesc, setCertDesc] = useState('');
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const profileInputRef = useRef(null);
 
   useEffect(() => {
     if (!loading && (!userProfile || userProfile.role !== 'student')) {
       setLocation('/');
     }
-  }, [userProfile, loading, setLocation]);
+  }, [userProfile, loading]);
 
   useEffect(() => {
-    if (userProfile?.id) {
-      fetchFiles();
+    if (userProfile?.roll_number) {
+      fetchProfilePhoto();
+      fetchResults();
+      fetchCertifications();
+      fetchTimetable();
+      fetchAttendance();
     }
   }, [userProfile]);
 
-  const fetchFiles = async () => {
-    const { data: certs } = await supabase.storage.from('certifications').list(`student_${userProfile.id}`);
-    const { data: res } = await supabase.storage.from('results').list(`student_${userProfile.id}`);
-    if (certs) {
-      const certUrls = await Promise.all(
-        certs.map(async (file) => {
-          const { data } = await supabase.storage.from('certifications').getPublicUrl(`student_${userProfile.id}/${file.name}`);
-          return data.publicUrl;
-        })
-      );
-      setCertificates(certUrls);
-    }
-    if (res) {
-      const resultUrls = await Promise.all(
-        res.map(async (file) => {
-          const { data } = await supabase.storage.from('results').getPublicUrl(`student_${userProfile.id}/${file.name}`);
-          return data.publicUrl;
-        })
-      );
-      setResults(resultUrls);
+  const fetchProfilePhoto = async () => {
+    const { data } = await supabase.storage.from('profile_photos').getPublicUrl(`profiles/${userProfile.id}/photo.jpg`);
+    setPhotoUrl(data?.publicUrl || null);
+  };
+
+  const getInitials = (name: string) =>
+    name.split(' ').map(n => n[0]).join('').toUpperCase();
+
+  const fetchResults = async () => {
+    const { data } = await supabase.from('results').select('*').eq('roll_number', userProfile.roll_number);
+    setResults(data || []);
+  };
+
+  const fetchCertifications = async () => {
+    const { data } = await supabase.from('certifications').select('*').eq('roll_number', userProfile.roll_number);
+    setCertificates(data || []);
+  };
+
+  const fetchTimetable = async () => {
+    const { data } = await supabase.from('timetables').select('*').eq('year', userProfile.year);
+    setTimetable(data || []);
+  };
+
+  const fetchAttendance = async () => {
+    const { data } = await supabase.from('attendance_summary').select('*').eq('roll_number', userProfile.roll_number);
+    setSubjectAttendance(data || []);
+  };
+
+  const uploadProfilePhoto = async () => {
+    const file = profileInputRef.current?.files?.[0];
+    if (file) {
+      await supabase.storage.from('profile_photos').upload(`profiles/${userProfile.id}/photo.jpg`, file, { upsert: true });
+      fetchProfilePhoto();
     }
   };
 
-  const handleUpload = async () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (file && userProfile?.id) {
-      const path = `student_${userProfile.id}/${file.name}`;
-      const { error } = await supabase.storage.from('certifications').upload(path, file);
-      if (!error) {
-        fetchFiles();
-      }
-    }
+  const uploadCertificate = async () => {
+    if (!certFile || !certTitle) return;
+    const path = `certifications/${userProfile.roll_number}/${certTitle}.pdf`;
+    await supabase.storage.from('certifications').upload(path, certFile, { upsert: true });
+    await supabase.from('certifications').insert({
+      roll_number: userProfile.roll_number,
+      title: certTitle,
+      description: certDesc,
+      file_url: path,
+    });
+    setOpenCertModal(false);
+    fetchCertifications();
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const deleteCertificate = async (filePath: string, id: string) => {
+    await supabase.storage.from('certifications').remove([filePath]);
+    await supabase.from('certifications').delete().eq('id', id);
+    fetchCertifications();
+  };
 
-  if (!userProfile || userProfile.role !== 'student') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-gray-600 mb-4">You don't have student privileges to access this page.</p>
-            <Button onClick={() => setLocation('/')} variant="outline">Go Home</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  if (loading) return <div className="text-center py-20">Loading Dashboard...</div>;
+  if (!userProfile || userProfile.role !== 'student') return <div>Access Denied</div>;
   if (userProfile.status !== 'approved') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Awaiting Approval</h2>
-            <p className="text-gray-600 mb-4">Your profile is under review by the admin. Please wait for approval.</p>
-            <Button onClick={logout} variant="outline"><LogOut className="w-4 h-4 mr-2" />Logout</Button>
-          </CardContent>
-        </Card>
+      <div className="text-center py-20">
+        <Clock className="w-10 h-10 mx-auto text-orange-500" />
+        <h2 className="text-lg mt-2">Awaiting Approval</h2>
+        <Button onClick={logout} className="mt-4">Logout</Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-              <p className="text-sm text-gray-600">Welcome back, {userProfile.student_name}!</p>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {/* Profile */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          {photoUrl ? (
+            <img src={photoUrl} className="w-12 h-12 rounded-full" />
+          ) : (
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+              {getInitials(userProfile.student_name)}
             </div>
-            <div className="flex items-center space-x-4">
-              <a
-                href="https://eazypay.icicibank.com/eazypayLink?P1=/2/SVNghjulFgj4uw2vsXQ=="
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Pay Fees
-              </a>
-              <Button onClick={logout} variant="outline" className="flex items-center space-x-2">
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </Button>
-            </div>
+          )}
+          <div>
+            <p className="text-xl font-bold">{userProfile.student_name}</p>
+            <p className="text-sm text-gray-500">Roll No: {userProfile.roll_number}</p>
           </div>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <InfoCard label="H.T Number" value={userProfile.ht_no} icon={<User className="w-8 h-8 text-blue-600" />} />
-          <InfoCard label="Academic Year" value={userProfile.year} icon={<BookOpen className="w-8 h-8 text-green-600" />} />
-          <InfoCard label="Status" value={userProfile.status} icon={<Trophy className="w-8 h-8 text-green-600" />} />
-          <InfoCard label="Attendance" value="85%" icon={<Clock className="w-8 h-8 text-orange-600" />} />
+        <div className="flex gap-2 items-center">
+          <input type="file" ref={profileInputRef} className="hidden" onChange={uploadProfilePhoto} />
+          <Button variant="outline" onClick={() => profileInputRef.current?.click()}>Upload Photo</Button>
+          <Button onClick={logout}>Logout</Button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2"><Calendar className="w-5 h-5" /><span>Today's Timetable</span></CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <TimeSlot subject="Machine Learning" time="9:00 AM - 10:00 AM" color="blue" />
-                <TimeSlot subject="Data Structures" time="10:00 AM - 11:00 AM" color="green" />
-                <TimeSlot subject="Web Development" time="11:00 AM - 12:00 PM" color="purple" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2"><BookOpen className="w-5 h-5" /><span>Profile Info</span></CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProfileItem label="Name" value={userProfile.student_name} />
-              <ProfileItem label="Hall Ticket" value={userProfile.ht_no} />
-              <ProfileItem label="Year" value={userProfile.year} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2"><FileDown className="w-5 h-5" /><span>Results</span></CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {results.length > 0 ? results.map((url, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
-                  <span>Result {idx + 1}</span>
-                  <div className="space-x-2">
-                    <a href={url} download className="text-blue-600"><FileDown className="w-5 h-5" /></a>
-                    <a href={url} target="_blank" className="text-green-600"><Eye className="w-5 h-5" /></a>
-                  </div>
-                </div>
-              )) : <p className="text-gray-600">No results uploaded yet.</p>}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2"><Upload className="w-5 h-5" /><span>Certifications</span></CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleUpload}
-              />
-              <Button onClick={() => fileInputRef.current?.click()} variant="outline">
-                Upload Certificate
-              </Button>
-              {certificates.map((url, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
-                  <span>Certificate {idx + 1}</span>
-                  <div className="space-x-2">
-                    <a href={url} download className="text-blue-600"><FileDown className="w-5 h-5" /></a>
-                    <a href={url} target="_blank" className="text-green-600"><Eye className="w-5 h-5" /></a>
-                  </div>
-                </div>
+      {/* Attendance */}
+      <Card>
+        <CardHeader><CardTitle>Subject-wise Attendance</CardTitle></CardHeader>
+        <CardContent>
+          <table className="w-full text-left">
+            <thead><tr><th>Subject</th><th>Attended</th><th>Total</th><th>%</th></tr></thead>
+            <tbody>
+              {subjectAttendance.map((a, i) => (
+                <tr key={i}>
+                  <td>{a.subject}</td>
+                  <td>{a.attended}</td>
+                  <td>{a.total}</td>
+                  <td>{a.percentage}%</td>
+                </tr>
               ))}
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      {/* Timetable */}
+      <Card>
+        <CardHeader><CardTitle>Weekly Timetable</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {timetable.map((t, idx) => (
+            <div key={idx} className="p-2 border rounded-md">
+              <strong>{t.day}</strong>: {t.subject} ({t.hour}) - {t.faculty}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Results */}
+      <Card>
+        <CardHeader><CardTitle>Results</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {results.length === 0 ? (
+            <p>📄 Results not uploaded yet.</p>
+          ) : results.map((r, idx) => {
+            const url = supabase.storage.from('results').getPublicUrl(`results/${userProfile.roll_number}/${r.semester}.pdf`).data.publicUrl;
+            return (
+              <div key={idx} className="flex justify-between border p-2 rounded-md">
+                <span>{r.semester}</span>
+                <div className="space-x-2">
+                  <a href={url} target="_blank"><Eye className="inline w-4 h-4" /></a>
+                  <a href={url} download><FileDown className="inline w-4 h-4" /></a>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Certifications */}
+      <Card>
+        <CardHeader className="flex justify-between items-center">
+          <CardTitle>Certifications</CardTitle>
+          <Button onClick={() => setOpenCertModal(true)}>Upload Certificate</Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {certificates.map((c, idx) => {
+            const url = supabase.storage.from('certifications').getPublicUrl(c.file_url).data.publicUrl;
+            return (
+              <div key={idx} className="flex justify-between items-center border p-2 rounded-md">
+                <div>
+                  <p className="font-medium">{c.title}</p>
+                  <p className="text-sm text-gray-500">{c.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a href={url} target="_blank"><Eye className="w-4 h-4" /></a>
+                  <a href={url} download><FileDown className="w-4 h-4" /></a>
+                  <Button size="icon" variant="ghost" onClick={() => deleteCertificate(c.file_url, c.id)}><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Upload Modal */}
+      <Dialog open={openCertModal} onOpenChange={setOpenCertModal}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Upload Certificate</DialogTitle></DialogHeader>
+          <Label>Title</Label>
+          <Input value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+          <Label>Description</Label>
+          <Input value={certDesc} onChange={e => setCertDesc(e.target.value)} />
+          <Label>File</Label>
+          <Input type="file" accept='.pdf,.jpg,.jpeg,.png' onChange={e => setCertFile(e.target.files?.[0] || null)} />
+          <Button className="mt-2" onClick={uploadCertificate}><Upload className="w-4 h-4 mr-1" /> Upload</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
-
-const InfoCard = ({ label, value, icon }: { label: string; value: any; icon: React.ReactNode }) => (
-  <Card>
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value || 'Not Set'}</p>
-        </div>
-        {icon}
-      </div>
-    </CardContent>
-  </Card>
-);
-
-const ProfileItem = ({ label, value }: { label: string; value: string | null }) => (
-  <div className="flex justify-between items-center p-3 border rounded-lg">
-    <div>
-      <p className="font-medium">{label}</p>
-      <p className="text-sm text-gray-600">{value}</p>
-    </div>
-  </div>
-);
-
-const TimeSlot = ({ subject, time, color }: { subject: string; time: string; color: string }) => (
-  <div className={`flex justify-between items-center p-3 bg-${color}-50 rounded-lg`}>
-    <div>
-      <p className="font-medium">{subject}</p>
-      <p className="text-sm text-gray-600">{time}</p>
-    </div>
-  </div>
-);
 
 export default StudentDashboard;
