@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         setUserProfile(null);
-        setNeedsProfileCreation(true);
+        setNeedsProfileCreation(redirectPending);
         return;
       }
 
