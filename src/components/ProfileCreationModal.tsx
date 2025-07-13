@@ -16,7 +16,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
   const { createProfile } = useAuth();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    htno: '',
+    ht_no: '',
     student_name: '',
     year: ''
   });
@@ -25,7 +25,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.htno || !formData.student_name || !formData.year) {
+    if (!formData.ht_no || !formData.student_name || !formData.year) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -38,7 +38,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
     
     try {
       await createProfile({
-        htno: formData.htno, // This will be mapped to ht_no in the context
+        ht_no: formData.ht_no,
         student_name: formData.student_name,
         year: parseInt(formData.year)
       });
@@ -49,7 +49,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
       });
       
       // Reset form
-      setFormData({ htno: '', student_name: '', year: '' });
+      setFormData({ ht_no: '', student_name: '', year: '' });
     } catch (error) {
       toast({
         title: "Error",
@@ -72,11 +72,11 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({ open }) => 
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="htno">Hall Ticket Number (H.T No.)</Label>
+            <Label htmlFor="ht_no">Hall Ticket Number (H.T No.)</Label>
             <Input
-              id="htno"
-              value={formData.htno}
-              onChange={(e) => setFormData(prev => ({ ...prev, htno: e.target.value }))}
+              id="ht_no"
+              value={formData.ht_no}
+              onChange={(e) => setFormData(prev => ({ ...prev, ht_no: e.target.value }))}
               placeholder="e.g., 22A91A05XX"
               required
             />

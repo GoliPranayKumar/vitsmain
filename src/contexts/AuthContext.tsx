@@ -55,10 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('User authenticated, loading profile...');
-          // Use setTimeout to avoid blocking the auth state change
-          setTimeout(() => {
-            loadUserProfile(session.user.id);
-          }, 100);
+          // Load profile immediately without setTimeout to prevent race conditions
+          loadUserProfile(session.user.id);
         } else {
           console.log('User logged out, clearing profile');
           setUserProfile(null);
@@ -101,10 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Profile query result:', { data, error });
 
       if (error && error.code === 'PGRST116') {
-        // No profile found, but only show profile creation for students
-        console.log('No profile found, checking if profile creation needed');
+        // No profile found - this should only happen for new signups
+        console.log('No profile found for existing user - this is unusual');
         setUserProfile(null);
-        // Don't automatically show profile creation modal
         setNeedsProfileCreation(false);
         setLoading(false);
         return;
@@ -127,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentPath = window.location.pathname;
         console.log('Current path:', currentPath, 'User role:', data.role, 'Status:', data.status);
         
-        // Only redirect if we're on the home page
+        // Only redirect if we're on the home page to avoid disrupting navigation
         if (currentPath === '/') {
           if (data.role === 'admin') {
             console.log('Redirecting admin to admin dashboard');

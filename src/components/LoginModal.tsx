@@ -45,17 +45,17 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           return;
         }
         console.log('Signup successful');
+        // For signup, close modal immediately since profile creation modal will handle the flow
+        resetForm();
+        onClose();
       } else {
         console.log('Attempting login for:', email, userType);
         await login(email, password, userType);
-        console.log('Login successful');
-      }
-
-      // Reset form and close modal after a short delay to allow auth state to update
-      setTimeout(() => {
+        console.log('Login successful - auth context will handle redirection');
+        // Close modal immediately after successful login
         resetForm();
         onClose();
-      }, 500);
+      }
     } catch (error: any) {
       console.error('Authentication failed:', error);
       setError(error.message || 'Authentication failed. Please try again.');
