@@ -33,6 +33,11 @@ export const useAuth = () => {
   return context;
 };
 
+const DEMO_EMAILS = [
+  'student@vignanits.ac.in',
+  'admin@vignanits.ac.in'
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -72,7 +77,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         setUserProfile(null);
-        setNeedsProfileCreation(redirectPending);
+        const isDemo = DEMO_EMAILS.includes(user?.email ?? '');
+        const isStudent = user?.user_metadata?.role === 'student';
+        setNeedsProfileCreation(redirectPending && !isDemo && isStudent);
         return null;
       }
 
