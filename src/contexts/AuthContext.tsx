@@ -20,10 +20,15 @@ interface AuthContextType {
   loading: boolean;
   needsProfileCreation: boolean;
   login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
-  signUp: (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userType: 'student' | 'admin',
+    ht_no?: string
+  ) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   createProfile: (profileData: any) => Promise<void>;
-  closeProfileCreationModal: () => void; // To close modal programmatically
+  closeProfileCreationModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,10 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [needsProfileCreation, setNeedsProfileCreation] = useState(false);
   const [loading, setLoading] = useState(true);
+
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Load user profile from user_profiles table
+  // Fetch user profile from Supabase table user_profiles by userId
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
@@ -53,29 +59,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading profile:', error);
+        console.error('[loadUserProfile] Supabase error:', error);
         return null;
       }
 
-      if (!data) {
-        // No profile found → user needs to create profile
-        setNeedsProfileCreation(true);
-        return null;
-      }
-
-      setNeedsProfileCreation(false);
-      return data;
+      return data || null;
     } catch (err) {
-      console.error('Exception loading user profile:', err);
+      console.error('[loadUserProfile] Exception:', err);
       return null;
     }
   };
 
-  // Initialize auth session & subscribe to auth state changes
+  // Initialization and subscription to auth changes
   useEffect(() => {
-    let isMounted = true; // To avoid state update after unmount
+    let isMounted = true;
 
-    const initAuth = async () => {
+    const initialize = async () => {
       setLoading(true);
       try {
         const {
@@ -92,32 +91,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!isMounted) return;
 
           setUserProfile(profile);
+          setNeedsProfileCreation(profile === null);
         } else {
           setUserProfile(null);
           setNeedsProfileCreation(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('[AuthProvider] Initialization error:', error);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
-    initAuth();
+    initialize();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
+
+      setLoading(true);
 
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const profile = await loadUserProfile(session.user.id);
+        if (!isMounted) return;
+
         setUserProfile(profile);
+        setNeedsProfileCreation(profile === null);
       } else {
         setUserProfile(null);
         setNeedsProfileCreation(false);
       }
+
+      setLoading(false);
     });
 
     return () => {
@@ -126,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Login function
+  // Login method with redirection and toast
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -137,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await loadUserProfile(data.user.id);
         setUser(data.user);
         setUserProfile(profile);
+        setNeedsProfileCreation(profile === null);
 
         if (profile?.role === 'admin') {
           setLocation('/admin-dashboard');
@@ -151,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLocation('/');
           }
         } else {
-          // No profile or unknown role fallback
+          // No profile or unknown role - show create profile modal
           setNeedsProfileCreation(true);
           setLocation('/');
         }
@@ -164,10 +172,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Signup function
-  const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
+  // Signup method verifies student ht_no and inserts user_profile
+  const signUp = async (
+    email: string,
+    password: string,
+    userType: 'student' | 'admin',
+    ht_no?: string
+  ) => {
     try {
-      let verified: any = null;
+      let verifiedStudent: any = null;
 
       if (userType === 'student') {
         const { data, error: verifyError } = await supabase
@@ -184,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        verified = data;
+        verifiedStudent = data;
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -206,15 +219,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (userType === 'student') {
           insertData.ht_no = ht_no;
-          insertData.student_name = verified?.student_name || email.split('@')[0];
-          insertData.year = verified?.year?.toString() || null;
+          insertData.student_name = verifiedStudent?.student_name || email.split('@')[0];
+          insertData.year = verifiedStudent?.year?.toString() || null;
         }
 
-        // Insert profile row - important for your profile loading logic!
         const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
 
         if (insertError) {
-          console.error('Error inserting user profile:', insertError);
+          console.error('[signUp] Insert profile error:', insertError);
           return { error: insertError };
         }
 
@@ -229,12 +241,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error: any) {
-      console.error('Signup failed:', error);
+      console.error('[signUp] Signup failed:', error);
       return { error };
     }
   };
 
-  // Create or update profile after signup
+  // Create or update profile and reset modal state
   const createProfile = async (profileData: any) => {
     if (!user) throw new Error('User not authenticated');
 
@@ -244,14 +256,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ht_no: profileData.ht_no,
         student_name: profileData.student_name,
         year: profileData.year.toString(),
-        status: 'pending', // Always start with pending approval
+        status: 'pending',
       })
       .eq('id', user.id);
 
     if (error) throw error;
 
-    const updated = await loadUserProfile(user.id);
-    setUserProfile(updated);
+    const updatedProfile = await loadUserProfile(user.id);
+    setUserProfile(updatedProfile);
     setNeedsProfileCreation(false);
 
     toast({
@@ -260,12 +272,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // To allow closing the profile creation modal forcibly (e.g. user cancels)
+  // Close the profile creation modal forcibly (cancel)
   const closeProfileCreationModal = () => {
     setNeedsProfileCreation(false);
   };
 
-  // Logout function
+  // Logout and clear state
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
