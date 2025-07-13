@@ -20,7 +20,7 @@ interface AuthContextType {
   loading: boolean;
   needsProfileCreation: boolean;
   login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
-  signUp: (email: string, password: string, userType: 'student' | 'admin') => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   createProfile: (profileData: any) => Promise<void>;
 }
@@ -31,25 +31,6 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-};
-
-const DEMO_USERS = {
-  'student@vignanits.ac.in': {
-    id: 'demo-student',
-    role: 'student',
-    status: 'approved',
-    student_name: 'Demo Student',
-    ht_no: '22A91A0001',
-    year: '3',
-  },
-  'admin@vignanits.ac.in': {
-    id: 'demo-admin',
-    role: 'admin',
-    status: 'approved',
-    student_name: null,
-    ht_no: null,
-    year: null,
-  },
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -75,15 +56,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loadUserProfile = async (userId: string, email: string): Promise<UserProfile | null> => {
-    if (email in DEMO_USERS) {
-      const demoProfile = DEMO_USERS[email];
-      setUserProfile(demoProfile);
-      setNeedsProfileCreation(false);
-      return demoProfile;
-    }
-
     try {
-      const { data, error } = await supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle();
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
       if (error) {
         console.error('Error loading profile:', error);
@@ -112,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -170,15 +148,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, userType: 'student' | 'admin') => {
+  const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      // If student, validate against verified_students
+      if (userType === 'student') {
+        const { data: verified, error: verifyError } = await supabase
+          .from('verified_students')
+          .select('*')
+          .eq('ht_no', ht_no)
+          .maybeSingle();
+
+        if (verifyError || !verified) {
+          return {
+            error: {
+              message: 'Hall ticket not found in verified students. Contact admin.',
+            },
+          };
+        }
+      }
 
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: { role: userType },
         },
       });
@@ -186,22 +178,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) return { error };
 
       if (data.user) {
-        const { error: insertError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            role: userType,
-            status: userType === 'admin' ? 'approved' : 'pending',
-            student_name: data.user.email?.split('@')[0] || 'User',
-          });
+        const insertData: any = {
+          id: data.user.id,
+          role: userType,
+          status: userType === 'admin' ? 'approved' : 'pending',
+        };
 
-        if (insertError) console.error('Error inserting profile:', insertError);
+        if (userType === 'student') {
+          insertData.ht_no = ht_no;
+          insertData.student_name = verified?.student_name || email.split('@')[0];
+          insertData.year = verified?.year?.toString() || null;
+        }
+
+        const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
+        if (insertError) console.error('Error inserting user_profiles:', insertError);
 
         toast({
           title: 'Account created',
-          description: userType === 'admin'
-            ? 'Admin account created successfully!'
-            : 'Please complete your profile. Awaiting admin approval.',
+          description:
+            userType === 'admin'
+              ? 'Admin account created successfully.'
+              : 'Account created. Please wait for admin approval.',
         });
       }
 
