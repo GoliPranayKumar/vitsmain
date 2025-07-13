@@ -48,7 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Load user profile for given userId, returns null if not found or error
+  /**
+   * Load user profile from Supabase 'user_profiles' table.
+   * Returns profile data or null if none found.
+   * Updates needsProfileCreation accordingly.
+   */
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
@@ -58,13 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading profile:', error);
+        console.error('Error loading user profile:', error);
         setNeedsProfileCreation(true);
         return null;
       }
 
       if (!data) {
-        // Profile missing → user must create one
+        // No profile found → user must create one
         setNeedsProfileCreation(true);
         return null;
       }
@@ -72,13 +76,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsProfileCreation(false);
       return data;
     } catch (err) {
-      console.error('Exception loading profile:', err);
+      console.error('Exception loading user profile:', err);
       setNeedsProfileCreation(true);
       return null;
     }
   };
 
-  // Init session & subscribe to auth changes
+  /**
+   * Initialize authentication session and subscribe to auth changes.
+   * Avoids updating state after unmount by using isMounted flag.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -97,7 +104,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           const profile = await loadUserProfile(session.user.id);
           if (!isMounted) return;
-
           setUserProfile(profile);
         } else {
           setUserProfile(null);
@@ -114,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
+    // Subscribe to auth state changes (sign in/out)
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!isMounted) return;
 
@@ -135,11 +142,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Login user and redirect based on role & status
+  /**
+   * Login user using email & password.
+   * Redirects based on role & approval status.
+   * Shows toast messages for feedback.
+   */
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
       if (error) throw error;
 
       if (data.user) {
@@ -172,7 +182,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign up user with verification if student, then insert profile row
+  /**
+   * Sign up user with role and optional ht_no for students.
+   * Verifies student ht_no against verified_students table.
+   * Inserts user profile after signup.
+   */
   const signUp = async (
     email: string,
     password: string,
@@ -246,7 +260,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Create or update user profile (called from ProfileCreationModal)
+  /**
+   * Create or update user profile after signup.
+   * Sets status to 'pending' for admin approval.
+   */
   const createProfile = async (profileData: {
     ht_no: string;
     student_name: string;
@@ -276,12 +293,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Force close profile creation modal
+  /**
+   * Close the profile creation modal forcibly (e.g. user cancels)
+   */
   const closeProfileCreationModal = () => {
     setNeedsProfileCreation(false);
   };
 
-  // Logout and clear all states
+  /**
+   * Logout the user, reset all states, redirect to homepage.
+   */
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
