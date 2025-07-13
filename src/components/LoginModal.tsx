@@ -4,7 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,9 +17,10 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   userType: 'student' | 'admin';
+  onOpenCreateProfile?: () => void; // For students to open ProfileCreationModal
 }
 
-const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
+const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,12 +36,11 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
 
     try {
       if (isSignUp) {
-        // Only allow admin sign-up
         if (userType !== 'admin') {
           toast({
             title: 'Students must use Create Profile',
-            description: 'Please use the Create Profile button on the homepage.',
-            variant: 'destructive'
+            description: 'Please use the Create Profile button below.',
+            variant: 'destructive',
           });
           setIsLoading(false);
           return;
@@ -51,10 +51,12 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           setError(result.error.message);
           return;
         }
+
         toast({
           title: 'Admin Account Created',
-          description: 'Admin account has been created successfully.'
+          description: 'Admin account has been created successfully.',
         });
+
         resetForm();
         onClose();
       } else {
@@ -107,9 +109,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email Address
-              </Label>
+              <Label htmlFor="email">Email Address</Label>
               <div className="relative mt-1">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -126,9 +126,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
+              <Label htmlFor="password">Password</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -167,7 +165,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                 : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
 
-            {/* Only show Create Account toggle for Admins */}
+            {/* Admin toggle */}
             {userType === 'admin' && (
               <div className="text-center">
                 <button
@@ -181,6 +179,23 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                 >
                   <UserPlus className="w-4 h-4" />
                   {isSignUp ? 'Already have an account? Sign In' : 'New Admin? Create Account'}
+                </button>
+              </div>
+            )}
+
+            {/* Student "Create Profile" trigger */}
+            {userType === 'student' && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClose();
+                    onOpenCreateProfile?.(); // ✅ trigger parent modal
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                  disabled={isLoading}
+                >
+                  New student? Create your profile
                 </button>
               </div>
             )}
