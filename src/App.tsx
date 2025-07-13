@@ -4,10 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import ProfileCreationModal from '@/components/ProfileCreationModal';
-
 import Index from './pages/Index';
 import AdminDashboard from './pages/AdminDashboard';
 import StudentDashboard from './pages/StudentDashboard';
@@ -16,7 +14,13 @@ import NotFound from './pages/NotFound';
 const queryClient = new QueryClient();
 
 const AppRoutes: React.FC = () => {
-  const { user, userProfile, loading, needsProfileCreation, closeProfileCreationModal } = useAuth();
+  const {
+    user,
+    userProfile,
+    loading,
+    needsProfileCreation,
+    closeProfileCreationModal,
+  } = useAuth();
 
   if (loading) {
     return (
@@ -29,8 +33,8 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  const isStudent = userProfile?.role === 'student';
-  const showModal = !!user && isStudent && needsProfileCreation;
+  const showModal =
+    !!user && userProfile?.role === 'student' && needsProfileCreation;
 
   return (
     <>
@@ -58,9 +62,9 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <AppRoutes />
           <Toaster />
           <Sonner />
-          <AppRoutes />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
