@@ -20,7 +20,12 @@ interface AuthContextType {
   loading: boolean;
   needsProfileCreation: boolean;
   login: (email: string, password: string, userType: 'student' | 'admin') => Promise<void>;
-  signUp: (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userType: 'student' | 'admin',
+    ht_no?: string
+  ) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   createProfile: (profileData: { ht_no: string; student_name: string; year: string }) => Promise<void>;
   closeProfileCreationModal: () => void;
@@ -43,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Load user profile from DB
+  // Load user profile for given userId, returns null if not found or error
   const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
@@ -59,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!data) {
+        // Profile missing → user must create one
         setNeedsProfileCreation(true);
         return null;
       }
@@ -72,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Initialize session and listen to auth state changes
+  // Init session & subscribe to auth changes
   useEffect(() => {
     let isMounted = true;
 
@@ -99,6 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        setUserProfile(null);
+        setNeedsProfileCreation(false);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -127,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Login user
+  // Login user and redirect based on role & status
   const login = async (email: string, password: string, userType: 'student' | 'admin') => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -152,7 +160,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLocation('/');
           }
         } else {
-          // fallback
           setNeedsProfileCreation(true);
           setLocation('/');
         }
@@ -165,8 +172,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Signup user
-  const signUp = async (email: string, password: string, userType: 'student' | 'admin', ht_no?: string) => {
+  // Sign up user with verification if student, then insert profile row
+  const signUp = async (
+    email: string,
+    password: string,
+    userType: 'student' | 'admin',
+    ht_no?: string
+  ): Promise<{ error: any }> => {
     try {
       let verified: any = null;
 
@@ -234,8 +246,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Create or update profile
-  const createProfile = async (profileData: { ht_no: string; student_name: string; year: string }) => {
+  // Create or update user profile (called from ProfileCreationModal)
+  const createProfile = async (profileData: {
+    ht_no: string;
+    student_name: string;
+    year: string;
+  }) => {
     if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
@@ -260,12 +276,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // Close profile creation modal forcibly
+  // Force close profile creation modal
   const closeProfileCreationModal = () => {
     setNeedsProfileCreation(false);
   };
 
-  // Logout
+  // Logout and clear all states
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
