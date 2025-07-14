@@ -56,6 +56,21 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // ✅ ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
+  // State for real-time data
+  const [allStudents, setAllStudents] = useState<PendingStudent[]>([]);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeEvents: 0,
+    facultyMembers: 0,
+    placements: 0
+  });
+  const [events, setEvents] = useState<Event[]>([]);
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
+  const [placements, setPlacements] = useState<Placement[]>([]);
+  const [gallery, setGallery] = useState<any[]>([]);
+  const [editingStudent, setEditingStudent] = useState<PendingStudent | null>(null);
+
   console.log('AdminDashboard: userProfile:', userProfile, 'loading:', loading);
 
   // Redirect if not admin
@@ -70,6 +85,56 @@ const AdminDashboard = () => {
     }
   }, [userProfile, loading, setLocation]);
 
+  // Load data from Supabase using any type to bypass type constraints
+  useEffect(() => {
+    if (userProfile?.role === 'admin') {
+      loadAllStudents();
+      loadEvents();
+      loadFaculty();
+      loadPlacements();
+      loadGallery();
+      loadStats();
+      
+      // Set up real-time subscriptions
+      const studentsChannel = supabase
+        .channel('students-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
+          loadAllStudents();
+          loadStats();
+        })
+        .subscribe();
+
+      const eventsChannel = supabase
+        .channel('events-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, loadEvents)
+        .subscribe();
+
+      const facultyChannel = supabase
+        .channel('faculty-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty' }, loadFaculty)
+        .subscribe();
+
+      const placementsChannel = supabase
+        .channel('placements-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'placements' }, loadPlacements)
+        .subscribe();
+
+      const galleryChannel = supabase
+        .channel('gallery-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, loadGallery)
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(studentsChannel);
+        supabase.removeChannel(eventsChannel);
+        supabase.removeChannel(facultyChannel);
+        supabase.removeChannel(placementsChannel);
+        supabase.removeChannel(galleryChannel);
+      };
+    }
+  }, [userProfile]);
+
+  // ✅ NOW SAFE TO DO EARLY RETURNS AFTER ALL HOOKS
   // Show loading while checking authentication
   if (loading || !userProfile) {
     return (
@@ -101,67 +166,6 @@ const AdminDashboard = () => {
       </div>
     );
   }
-
-  // State for real-time data
-  const [allStudents, setAllStudents] = useState<PendingStudent[]>([]);
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeEvents: 0,
-    facultyMembers: 0,
-    placements: 0
-  });
-  const [events, setEvents] = useState<Event[]>([]);
-  const [faculty, setFaculty] = useState<Faculty[]>([]);
-  const [placements, setPlacements] = useState<Placement[]>([]);
-  const [gallery, setGallery] = useState<any[]>([]);
-  const [editingStudent, setEditingStudent] = useState<PendingStudent | null>(null);
-
-  // Load data from Supabase using any type to bypass type constraints
-  useEffect(() => {
-    loadAllStudents();
-    loadEvents();
-    loadFaculty();
-    loadPlacements();
-    loadGallery();
-    loadStats();
-    
-    // Set up real-time subscriptions
-    const studentsChannel = supabase
-      .channel('students-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
-        loadAllStudents();
-        loadStats();
-      })
-      .subscribe();
-
-    const eventsChannel = supabase
-      .channel('events-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, loadEvents)
-      .subscribe();
-
-    const facultyChannel = supabase
-      .channel('faculty-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty' }, loadFaculty)
-      .subscribe();
-
-    const placementsChannel = supabase
-      .channel('placements-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'placements' }, loadPlacements)
-      .subscribe();
-
-    const galleryChannel = supabase
-      .channel('gallery-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, loadGallery)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(studentsChannel);
-      supabase.removeChannel(eventsChannel);
-      supabase.removeChannel(facultyChannel);
-      supabase.removeChannel(placementsChannel);
-      supabase.removeChannel(galleryChannel);
-    };
-  }, []);
 
   const loadAllStudents = async () => {
     try {
