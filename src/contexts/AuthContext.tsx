@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
 
-      console.log('[Auth] loadUserProfile data:', data);
+      console.log('[Auth] loadUserProfile result:', data);
       return data || null;
     } catch (error) {
       console.error('[Auth] loadUserProfile exception:', error);
@@ -135,44 +135,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[Auth] Auth state changed:', _event, session);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('[Auth] Auth state changed:', _event, session?.user?.email || 'no user');
       if (!isMounted) return;
       
       setSession(session);
       setUser(session?.user ?? null);
 
-      if (session?.user) {
-        let profile = await loadUserProfile(session.user.id);
+      // Use setTimeout to prevent blocking the auth state change callback
+      setTimeout(async () => {
+        if (!isMounted) return;
         
-        // Auto-create admin profile if it doesn't exist
-        if (!profile && session.user.email === 'admin@vignanits.ac.in') {
-          const { error } = await supabase.from('user_profiles').insert({
-            id: session.user.id,
-            role: 'admin',
-            status: 'approved'
-          });
+        if (session?.user) {
+          let profile = await loadUserProfile(session.user.id);
           
-          if (!error) {
-            profile = await loadUserProfile(session.user.id);
+          // Auto-create admin profile if it doesn't exist
+          if (!profile && session.user.email === 'admin@vignanits.ac.in') {
+            console.log('[Auth] Creating admin profile...');
+            const { error } = await supabase.from('user_profiles').insert({
+              id: session.user.id,
+              role: 'admin',
+              status: 'approved'
+            });
+            
+            if (!error) {
+              profile = await loadUserProfile(session.user.id);
+            }
+          }
+          
+          if (isMounted) {
+            setUserProfile(profile);
+            setNeedsProfileCreation(!profile && session.user.user_metadata?.role === 'student');
+          }
+        } else {
+          if (isMounted) {
+            setUserProfile(null);
+            setNeedsProfileCreation(false);
           }
         }
-        
-        setUserProfile(profile);
 
-        if (!profile && session.user.user_metadata?.role === 'student') {
-          setNeedsProfileCreation(true);
-        } else {
-          setNeedsProfileCreation(false);
+        if (isMounted) {
+          setLoading(false);
+          console.log('[Auth] Auth state processing complete');
         }
-      } else {
-        setUserProfile(null);
-        setNeedsProfileCreation(false);
-      }
-
-      if (isMounted) {
-        setLoading(false); // ensure loading is set to false
-      }
+      }, 0);
     });
 
     return () => {
