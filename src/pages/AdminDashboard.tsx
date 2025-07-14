@@ -602,42 +602,42 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="students" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
-            <TabsTrigger value="students" className="flex items-center space-x-2">
-              <Users className="w-4 h-4" />
-              <span>Student Management</span>
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-1">
+            <TabsTrigger value="students" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <Users className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Students</span>
             </TabsTrigger>
-            <TabsTrigger value="certifications" className="flex items-center space-x-2">
-              <BookOpen className="w-4 h-4" />
-              <span>Certifications</span>
+            <TabsTrigger value="certifications" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <BookOpen className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Certs</span>
             </TabsTrigger>
-            <TabsTrigger value="events" className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4" />
-              <span>Events</span>
+            <TabsTrigger value="events" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <Calendar className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Events</span>
             </TabsTrigger>
-            <TabsTrigger value="faculty" className="flex items-center space-x-2">
-              <GraduationCap className="w-4 h-4" />
-              <span>Faculty</span>
+            <TabsTrigger value="faculty" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <GraduationCap className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Faculty</span>
             </TabsTrigger>
-            <TabsTrigger value="placements" className="flex items-center space-x-2">
-              <Trophy className="w-4 h-4" />
-              <span>Placements</span>
+            <TabsTrigger value="placements" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <Trophy className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Placements</span>
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="flex items-center space-x-2">
-              <Clock className="w-4 h-4" />
-              <span>Attendance</span>
+            <TabsTrigger value="attendance" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <Clock className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Attendance</span>
             </TabsTrigger>
-            <TabsTrigger value="results" className="flex items-center space-x-2">
-              <FileText className="w-4 h-4" />
-              <span>Results</span>
+            <TabsTrigger value="results" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <FileText className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Results</span>
             </TabsTrigger>
-            <TabsTrigger value="timetable" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
-              <span>Timetable</span>
+            <TabsTrigger value="timetable" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <BarChart3 className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Timetable</span>
             </TabsTrigger>
-            <TabsTrigger value="gallery" className="flex items-center space-x-2">
-              <Image className="w-4 h-4" />
-              <span>Gallery</span>
+            <TabsTrigger value="gallery" className="flex items-center space-x-1 text-xs lg:text-sm">
+              <Image className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Gallery</span>
             </TabsTrigger>
           </TabsList>
 
