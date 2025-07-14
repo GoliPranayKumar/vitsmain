@@ -28,16 +28,7 @@ const StudentDashboard = () => {
   const [certDesc, setCertDesc] = useState('');
   const [certFile, setCertFile] = useState<File | null>(null);
 
-  // ✅ Safely wait for auth to load
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
-  }
-
-  // ✅ Exit if userProfile is not ready
-  if (!userProfile || userProfile.role !== 'student') {
-    return <div className="flex justify-center items-center h-screen text-red-500">User profile not found or not a student.</div>;
-  }
-
+  // ✅ All hooks MUST be called before any early returns
   useEffect(() => {
     if (userProfile?.ht_no) {
       fetchPhoto();
@@ -47,6 +38,15 @@ const StudentDashboard = () => {
       fetchTimetable();
     }
   }, [userProfile]);
+
+  // ✅ Now safe to do early returns AFTER all hooks
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  if (!userProfile || userProfile.role !== 'student') {
+    return <div className="flex justify-center items-center h-screen text-red-500">User profile not found or not a student.</div>;
+  }
 
   const getInitials = (name: string) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase();
