@@ -137,11 +137,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('[Auth] Auth state changed:', _event, session);
+      if (!isMounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
+        let profile = await loadUserProfile(session.user.id);
+        
+        // Auto-create admin profile if it doesn't exist
+        if (!profile && session.user.email === 'admin@vignanits.ac.in') {
+          const { error } = await supabase.from('user_profiles').insert({
+            id: session.user.id,
+            role: 'admin',
+            status: 'approved'
+          });
+          
+          if (!error) {
+            profile = await loadUserProfile(session.user.id);
+          }
+        }
+        
         setUserProfile(profile);
 
         if (!profile && session.user.user_metadata?.role === 'student') {
@@ -154,7 +170,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setNeedsProfileCreation(false);
       }
 
-      setLoading(false); // ensure spinner closes after auth state change
+      if (isMounted) {
+        setLoading(false); // ensure loading is set to false
+      }
     });
 
     return () => {
