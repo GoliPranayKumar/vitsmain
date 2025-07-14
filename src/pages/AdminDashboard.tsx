@@ -74,6 +74,7 @@ const AdminDashboard = () => {
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
+  const [certifications, setCertifications] = useState<any[]>([]);
   const [editingStudent, setEditingStudent] = useState<PendingStudent | null>(null);
 
   console.log('AdminDashboard: userProfile:', userProfile, 'loading:', loading);
@@ -98,6 +99,7 @@ const AdminDashboard = () => {
       loadFaculty();
       loadPlacements();
       loadGallery();
+      loadCertifications();
       loadStats();
       
       // Set up real-time subscriptions
@@ -129,12 +131,18 @@ const AdminDashboard = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, loadGallery)
         .subscribe();
 
+      const certificationsChannel = supabase
+        .channel('certifications-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'certifications' }, loadCertifications)
+        .subscribe();
+
       return () => {
         supabase.removeChannel(studentsChannel);
         supabase.removeChannel(eventsChannel);
         supabase.removeChannel(facultyChannel);
         supabase.removeChannel(placementsChannel);
         supabase.removeChannel(galleryChannel);
+        supabase.removeChannel(certificationsChannel);
       };
     }
   }, [userProfile]);
@@ -265,6 +273,24 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error loading gallery:', error);
+    }
+  };
+
+  const loadCertifications = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('certifications')
+        .select(`
+          *, 
+          user_profiles!inner(student_name, ht_no)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setCertifications(data);
+      }
+    } catch (error) {
+      console.error('Error loading certifications:', error);
     }
   };
 
@@ -419,6 +445,58 @@ const AdminDashboard = () => {
     }
   };
 
+  // Certification Management Functions
+  const approveCertification = async (certId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('certifications')
+        .update({ status: 'approved' })
+        .eq('id', certId);
+      
+      if (!error) {
+        toast({ title: "Certification approved successfully" });
+      }
+    } catch (error) {
+      console.error('Error approving certification:', error);
+    }
+  };
+
+  const rejectCertification = async (certId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('certifications')
+        .update({ status: 'rejected' })
+        .eq('id', certId);
+      
+      if (!error) {
+        toast({ title: "Certification rejected" });
+      }
+    } catch (error) {
+      console.error('Error rejecting certification:', error);
+    }
+  };
+
+  const deleteCertification = async (certId: string, fileUrl: string) => {
+    try {
+      // Delete file from storage if exists
+      if (fileUrl) {
+        await supabase.storage.from('certifications').remove([fileUrl]);
+      }
+      
+      // Delete record from database
+      const { error } = await (supabase as any)
+        .from('certifications')
+        .delete()
+        .eq('id', certId);
+      
+      if (!error) {
+        toast({ title: "Certification deleted successfully" });
+      }
+    } catch (error) {
+      console.error('Error deleting certification:', error);
+    }
+  };
+
   // Student Edit Function
   const updateStudent = async (studentData: Partial<PendingStudent>) => {
     try {
@@ -524,10 +602,14 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="students" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="students" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
               <span>Student Management</span>
+            </TabsTrigger>
+            <TabsTrigger value="certifications" className="flex items-center space-x-2">
+              <BookOpen className="w-4 h-4" />
+              <span>Certifications</span>
             </TabsTrigger>
             <TabsTrigger value="events" className="flex items-center space-x-2">
               <Calendar className="w-4 h-4" />
@@ -623,6 +705,108 @@ const AdminDashboard = () => {
                   <div className="text-center py-8">
                     <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 text-lg">No students found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="certifications">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <BookOpen className="w-5 h-5" />
+                  <span>Student Certifications ({certifications.length})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {certifications.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-2 text-left">Student</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Certificate Title</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Issuer</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Date Issued</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {certifications.map((cert) => (
+                          <tr key={cert.id}>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {cert.user_profiles?.student_name || 'Unknown'}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              {cert.user_profiles?.ht_no || cert.ht_no}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">{cert.title}</td>
+                            <td className="border border-gray-200 px-4 py-2">{cert.issuer}</td>
+                            <td className="border border-gray-200 px-4 py-2">{cert.date_issued}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                cert.status === 'pending' 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : cert.status === 'approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {cert.status}
+                              </span>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div className="flex space-x-2">
+                                {cert.file_url && (
+                                  <a 
+                                    href={supabase.storage.from('certifications').getPublicUrl(cert.file_url).data.publicUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Button size="sm" variant="outline">
+                                      View
+                                    </Button>
+                                  </a>
+                                )}
+                                {cert.status === 'pending' && (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => approveCertification(cert.id)} 
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive" 
+                                      onClick={() => rejectCertification(cert.id)}
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive" 
+                                  onClick={() => deleteCertification(cert.id, cert.file_url)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No certifications submitted yet</p>
+                    <p className="text-gray-400">Students will see their certifications here once uploaded</p>
                   </div>
                 )}
               </CardContent>

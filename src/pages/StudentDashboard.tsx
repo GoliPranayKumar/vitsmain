@@ -128,22 +128,64 @@ const StudentDashboard = () => {
   };
 
   const uploadCert = async () => {
-    if (!certFile || !certTitle) return;
-    const path = `certifications/${userProfile.ht_no}/${certTitle}.pdf`;
-    await supabase.storage.from('certifications').upload(path, certFile, { upsert: true });
-    await supabase.from('certifications').insert({
-      ht_no: userProfile.ht_no,
-      student_id: userProfile.id,
-      title: certTitle,
-      issuer: 'Student Upload',
-      date_issued: new Date().toISOString().split('T')[0],
-      file_url: path,
-    });
-    toast({ title: 'Certificate uploaded' });
-    setCertFile(null);
-    setCertTitle('');
-    setCertDesc('');
-    fetchcertificates();
+    if (!certFile || !certTitle) {
+      toast({ 
+        title: 'Error', 
+        description: 'Please provide both title and file',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    try {
+      // Get the file extension from the uploaded file
+      const fileExt = certFile.name.split('.').pop();
+      const fileName = `${Date.now()}-${certTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const path = `${userProfile.ht_no}/${fileName}`;
+
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('certifications')
+        .upload(path, certFile, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Insert record to database
+      const { error: dbError } = await supabase
+        .from('certifications')
+        .insert({
+          ht_no: userProfile.ht_no,
+          student_id: userProfile.id,
+          title: certTitle,
+          issuer: 'Student Upload',
+          date_issued: new Date().toISOString().split('T')[0],
+          file_url: path,
+        });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      toast({ 
+        title: '✅ Certificate uploaded successfully',
+        description: 'Your certificate is pending admin approval.'
+      });
+
+      setCertFile(null);
+      setCertTitle('');
+      setCertDesc('');
+      fetchcertificates();
+
+    } catch (error: any) {
+      console.error('Error uploading certificate:', error);
+      toast({ 
+        title: 'Upload failed', 
+        description: error.message || 'Failed to upload certificate. Please try again.',
+        variant: 'destructive' 
+      });
+    }
   };
 
   const deleteCert = async (fileUrl: string, id: string) => {
