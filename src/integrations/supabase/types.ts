@@ -118,8 +118,10 @@ export type Database = {
           id: string
           image_url: string | null
           location: string | null
+          speaker: string | null
           time: string
           title: string
+          venue: string | null
         }
         Insert: {
           created_at?: string | null
@@ -128,8 +130,10 @@ export type Database = {
           id?: string
           image_url?: string | null
           location?: string | null
+          speaker?: string | null
           time: string
           title: string
+          venue?: string | null
         }
         Update: {
           created_at?: string | null
@@ -138,76 +142,129 @@ export type Database = {
           id?: string
           image_url?: string | null
           location?: string | null
+          speaker?: string | null
           time?: string
           title?: string
+          venue?: string | null
         }
         Relationships: []
       }
       faculty: {
         Row: {
+          bio: string | null
           created_at: string | null
           education: string | null
           email: string | null
+          expertise: string | null
           id: string
           image_url: string | null
           linkedin: string | null
           name: string
           phone: string | null
           position: string
+          publications: string | null
           research: string | null
         }
         Insert: {
+          bio?: string | null
           created_at?: string | null
           education?: string | null
           email?: string | null
+          expertise?: string | null
           id?: string
           image_url?: string | null
           linkedin?: string | null
           name: string
           phone?: string | null
           position: string
+          publications?: string | null
           research?: string | null
         }
         Update: {
+          bio?: string | null
           created_at?: string | null
           education?: string | null
           email?: string | null
+          expertise?: string | null
           id?: string
           image_url?: string | null
           linkedin?: string | null
           name?: string
           phone?: string | null
           position?: string
+          publications?: string | null
           research?: string | null
+        }
+        Relationships: []
+      }
+      gallery: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          title: string | null
+          type: string
+          uploaded_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string | null
+          type: string
+          uploaded_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          title?: string | null
+          type?: string
+          uploaded_at?: string
+          url?: string
         }
         Relationships: []
       }
       placements: {
         Row: {
+          branch: string | null
           company: string
           created_at: string | null
+          ctc: number | null
           id: string
           package: string
           position: string
+          student_name: string | null
           students_placed: number | null
+          type: string | null
           year: string
         }
         Insert: {
+          branch?: string | null
           company: string
           created_at?: string | null
+          ctc?: number | null
           id?: string
           package: string
           position: string
+          student_name?: string | null
           students_placed?: number | null
+          type?: string | null
           year: string
         }
         Update: {
+          branch?: string | null
           company?: string
           created_at?: string | null
+          ctc?: number | null
           id?: string
           package?: string
           position?: string
+          student_name?: string | null
           students_placed?: number | null
+          type?: string | null
           year?: string
         }
         Relationships: []

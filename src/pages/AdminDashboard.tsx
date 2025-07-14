@@ -16,7 +16,7 @@ import { useLocation } from 'wouter';
 // Type definitions for our data
 interface PendingStudent {
   id: string;
-  htno: string;
+  ht_no: string;
   student_name: string;
   year: number;
   status: string;
@@ -104,6 +104,7 @@ const AdminDashboard = () => {
 
   // State for real-time data
   const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
+  const [approvedStudents, setApprovedStudents] = useState<PendingStudent[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeEvents: 0,
@@ -117,6 +118,7 @@ const AdminDashboard = () => {
   // Load data from Supabase using any type to bypass type constraints
   useEffect(() => {
     loadPendingStudents();
+    loadApprovedStudents();
     loadEvents();
     loadFaculty();
     loadPlacements();
@@ -127,23 +129,24 @@ const AdminDashboard = () => {
       .channel('pending-students')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
         loadPendingStudents();
+        loadApprovedStudents();
         loadStats();
       })
       .subscribe();
 
     const eventsChannel = supabase
       .channel('events-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'department_events' }, loadEvents)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, loadEvents)
       .subscribe();
 
     const facultyChannel = supabase
       .channel('faculty-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty_members' }, loadFaculty)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty' }, loadFaculty)
       .subscribe();
 
     const placementsChannel = supabase
       .channel('placements-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'placement_records' }, loadPlacements)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'placements' }, loadPlacements)
       .subscribe();
 
     return () => {
@@ -170,13 +173,29 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadApprovedStudents = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_profiles')
+        .select('*')
+        .eq('status', 'approved')
+        .eq('role', 'student');
+      
+      if (!error && data) {
+        setApprovedStudents(data);
+      }
+    } catch (error) {
+      console.error('Error loading approved students:', error);
+    }
+  };
+
   const loadStats = async () => {
     try {
       const [studentsRes, eventsRes, facultyRes, placementsRes] = await Promise.all([
         (supabase as any).from('user_profiles').select('id', { count: 'exact' }).eq('role', 'student'),
-        (supabase as any).from('department_events').select('id', { count: 'exact' }),
-        (supabase as any).from('faculty_members').select('id', { count: 'exact' }),
-        (supabase as any).from('placement_records').select('id', { count: 'exact' })
+        (supabase as any).from('events').select('id', { count: 'exact' }),
+        (supabase as any).from('faculty').select('id', { count: 'exact' }),
+        (supabase as any).from('placements').select('id', { count: 'exact' })
       ]);
 
       setStats({
@@ -193,7 +212,7 @@ const AdminDashboard = () => {
   const loadEvents = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from('department_events')
+        .from('events')
         .select('*')
         .order('date', { ascending: false });
       
@@ -208,7 +227,7 @@ const AdminDashboard = () => {
   const loadFaculty = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from('faculty_members')
+        .from('faculty')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -223,7 +242,7 @@ const AdminDashboard = () => {
   const loadPlacements = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from('placement_records')
+        .from('placements')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -270,7 +289,7 @@ const AdminDashboard = () => {
   const addEvent = async (newEvent: Omit<Event, 'id'>) => {
     try {
       const { error } = await (supabase as any)
-        .from('department_events')
+        .from('events')
         .insert(newEvent);
       
       if (!error) {
@@ -284,7 +303,7 @@ const AdminDashboard = () => {
   const deleteEvent = async (eventId: string) => {
     try {
       const { error } = await (supabase as any)
-        .from('department_events')
+        .from('events')
         .delete()
         .eq('id', eventId);
       
@@ -300,7 +319,7 @@ const AdminDashboard = () => {
   const addFaculty = async (newFaculty: Omit<Faculty, 'id'>) => {
     try {
       const { error } = await (supabase as any)
-        .from('faculty_members')
+        .from('faculty')
         .insert(newFaculty);
       
       if (!error) {
@@ -314,7 +333,7 @@ const AdminDashboard = () => {
   const deleteFaculty = async (facultyId: string) => {
     try {
       const { error } = await (supabase as any)
-        .from('faculty_members')
+        .from('faculty')
         .delete()
         .eq('id', facultyId);
       
@@ -330,7 +349,7 @@ const AdminDashboard = () => {
   const addPlacement = async (newPlacement: Omit<Placement, 'id'>) => {
     try {
       const { error } = await (supabase as any)
-        .from('placement_records')
+        .from('placements')
         .insert(newPlacement);
       
       if (!error) {
@@ -344,7 +363,7 @@ const AdminDashboard = () => {
   const deletePlacement = async (placementId: string) => {
     try {
       const { error } = await (supabase as any)
-        .from('placement_records')
+        .from('placements')
         .delete()
         .eq('id', placementId);
       
@@ -480,60 +499,108 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="students">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="w-5 h-5" />
-                  <span>Student Management - Pending Approvals</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pendingStudents.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-200">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
-                          <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
-                          <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
-                          <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-                          <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingStudents.map((student) => (
-                          <tr key={student.id}>
-                            <td className="border border-gray-200 px-4 py-2">{student.htno}</td>
-                            <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
-                            <td className="border border-gray-200 px-4 py-2">{student.year}</td>
-                            <td className="border border-gray-200 px-4 py-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                                {student.status}
-                              </span>
-                            </td>
-                            <td className="border border-gray-200 px-4 py-2">
-                              <div className="flex space-x-2">
-                                <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
+            <div className="space-y-6">
+              {/* Pending Students */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Users className="w-5 h-5" />
+                    <span>Pending Approvals ({pendingStudents.length})</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {pendingStudents.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No pending student approvals</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        </thead>
+                        <tbody>
+                          {pendingStudents.map((student) => (
+                            <tr key={student.id}>
+                              <td className="border border-gray-200 px-4 py-2">{student.ht_no}</td>
+                              <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
+                              <td className="border border-gray-200 px-4 py-2">{student.year}</td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                  {student.status}
+                                </span>
+                              </td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                <div className="flex space-x-2">
+                                  <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 text-lg">No pending student approvals</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Approved Students */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Users className="w-5 h-5" />
+                    <span>Approved Students ({approvedStudents.length})</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {approvedStudents.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
+                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {approvedStudents.map((student) => (
+                            <tr key={student.id}>
+                              <td className="border border-gray-200 px-4 py-2">{student.ht_no}</td>
+                              <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
+                              <td className="border border-gray-200 px-4 py-2">{student.year}</td>
+                              <td className="border border-gray-200 px-4 py-2">
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                  {student.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 text-lg">No approved students yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="events">
