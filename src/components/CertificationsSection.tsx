@@ -92,7 +92,7 @@ const CertificationsSection = () => {
             <DialogHeader>
               <DialogTitle>Upload New Certification</DialogTitle>
             </DialogHeader>
-            <UploadCertificationModal htno={userProfile?.ht_no || ''} />
+            <UploadCertificationModal onUpload={fetchCertificates} />
           </DialogContent>
         </Dialog>
       </CardHeader>

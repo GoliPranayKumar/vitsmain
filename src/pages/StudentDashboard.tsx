@@ -98,9 +98,9 @@ const StudentDashboard = () => {
   const fetchTimetable = async () => {
     if (!userProfile?.year) return;
     const { data } = await supabase
-      .from('timetables')
+      .from('timetable')
       .select('*')
-      .eq('year', userProfile.year);
+      .eq('year', parseInt(userProfile.year || '0'));
     setTimetable(data || []);
   };
 
@@ -110,8 +110,10 @@ const StudentDashboard = () => {
     await supabase.storage.from('certifications').upload(path, certFile, { upsert: true });
     await supabase.from('certifications').insert({
       ht_no: userProfile.ht_no,
+      student_id: userProfile.id,
       title: certTitle,
-      description: certDesc,
+      issuer: 'Student Upload',
+      date_issued: new Date().toISOString().split('T')[0],
       file_url: path,
     });
     toast({ title: 'Certificate uploaded' });

@@ -58,7 +58,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
         .select('*')
         .eq('ht_no', ht_no)
         .eq('student_name', student_name)
-        .eq('year', parseInt(year))
+        .eq('year', year)
         .maybeSingle();
 
       if (verifyError || !verified) {
@@ -86,7 +86,7 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
         .update({
           ht_no,
           student_name,
-          year: parseInt(year),
+          year: year,
           status: 'pending',
         })
         .eq('id', user.id);

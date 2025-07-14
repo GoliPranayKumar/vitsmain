@@ -19,8 +19,8 @@ const ResultsSection = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (userProfile?.htno) {
-      fetchResults(userProfile.htno);
+    if (userProfile?.ht_no) {
+      fetchResults(userProfile.ht_no);
     }
   }, [userProfile]);
 
