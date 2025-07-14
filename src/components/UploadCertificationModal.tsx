@@ -27,7 +27,7 @@ const UploadCertificationModal = ({ onUpload }: { onUpload: () => void }) => {
     setUploading(true);
     const filename = `${userProfile?.ht_no}_${Date.now()}_${file.name}`;
     const { data: fileData, error: fileError } = await supabase.storage
-      .from('certificates')
+      .from('certifications')
       .upload(filename, file);
 
     if (fileError) {
@@ -37,7 +37,7 @@ const UploadCertificationModal = ({ onUpload }: { onUpload: () => void }) => {
       return;
     }
 
-    const publicURL = supabase.storage.from('certificates').getPublicUrl(filename).data.publicUrl;
+    const publicURL = supabase.storage.from('certifications').getPublicUrl(filename).data.publicUrl;
 
     const { error: insertError } = await supabase.from('student_certificates').insert({
       htno: userProfile?.ht_no,
