@@ -103,8 +103,7 @@ const AdminDashboard = () => {
   }
 
   // State for real-time data
-  const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
-  const [approvedStudents, setApprovedStudents] = useState<PendingStudent[]>([]);
+  const [allStudents, setAllStudents] = useState<PendingStudent[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeEvents: 0,
@@ -114,22 +113,23 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
+  const [gallery, setGallery] = useState<any[]>([]);
+  const [editingStudent, setEditingStudent] = useState<PendingStudent | null>(null);
 
   // Load data from Supabase using any type to bypass type constraints
   useEffect(() => {
-    loadPendingStudents();
-    loadApprovedStudents();
+    loadAllStudents();
     loadEvents();
     loadFaculty();
     loadPlacements();
+    loadGallery();
     loadStats();
     
     // Set up real-time subscriptions
     const studentsChannel = supabase
-      .channel('pending-students')
+      .channel('students-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
-        loadPendingStudents();
-        loadApprovedStudents();
+        loadAllStudents();
         loadStats();
       })
       .subscribe();
@@ -149,43 +149,33 @@ const AdminDashboard = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'placements' }, loadPlacements)
       .subscribe();
 
+    const galleryChannel = supabase
+      .channel('gallery-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, loadGallery)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(studentsChannel);
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(facultyChannel);
       supabase.removeChannel(placementsChannel);
+      supabase.removeChannel(galleryChannel);
     };
   }, []);
 
-  const loadPendingStudents = async () => {
+  const loadAllStudents = async () => {
     try {
       const { data, error } = await (supabase as any)
         .from('user_profiles')
         .select('*')
-        .eq('status', 'pending')
-        .eq('role', 'student');
+        .eq('role', 'student')
+        .order('status', { ascending: false }); // pending first
       
       if (!error && data) {
-        setPendingStudents(data);
+        setAllStudents(data);
       }
     } catch (error) {
-      console.error('Error loading pending students:', error);
-    }
-  };
-
-  const loadApprovedStudents = async () => {
-    try {
-      const { data, error } = await (supabase as any)
-        .from('user_profiles')
-        .select('*')
-        .eq('status', 'approved')
-        .eq('role', 'student');
-      
-      if (!error && data) {
-        setApprovedStudents(data);
-      }
-    } catch (error) {
-      console.error('Error loading approved students:', error);
+      console.error('Error loading students:', error);
     }
   };
 
@@ -251,6 +241,21 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error loading placements:', error);
+    }
+  };
+
+  const loadGallery = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('gallery')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setGallery(data);
+      }
+    } catch (error) {
+      console.error('Error loading gallery:', error);
     }
   };
 
@@ -375,6 +380,53 @@ const AdminDashboard = () => {
     }
   };
 
+  // Gallery Management Functions
+  const addGalleryItem = async (newItem: { title: string; description?: string; type: string; url: string }) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('gallery')
+        .insert(newItem);
+      
+      if (!error) {
+        toast({ title: "Gallery item added successfully" });
+      }
+    } catch (error) {
+      console.error('Error adding gallery item:', error);
+    }
+  };
+
+  const deleteGalleryItem = async (itemId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('gallery')
+        .delete()
+        .eq('id', itemId);
+      
+      if (!error) {
+        toast({ title: "Gallery item deleted successfully" });
+      }
+    } catch (error) {
+      console.error('Error deleting gallery item:', error);
+    }
+  };
+
+  // Student Edit Function
+  const updateStudent = async (studentData: Partial<PendingStudent>) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('user_profiles')
+        .update(studentData)
+        .eq('id', editingStudent?.id);
+      
+      if (!error) {
+        toast({ title: "Student details updated successfully" });
+        setEditingStudent(null);
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+    }
+  };
+
   // File upload handlers
   const handleAttendanceUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -466,7 +518,7 @@ const AdminDashboard = () => {
           <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="students" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
-              <span>Students</span>
+              <span>Student Management</span>
             </TabsTrigger>
             <TabsTrigger value="events" className="flex items-center space-x-2">
               <Calendar className="w-4 h-4" />
@@ -499,108 +551,73 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="students">
-            <div className="space-y-6">
-              {/* Pending Students */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="w-5 h-5" />
-                    <span>Pending Approvals ({pendingStudents.length})</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingStudents.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-200">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="w-5 h-5" />
+                  <span>Student Management ({allStudents.length})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allStudents.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allStudents.map((student) => (
+                          <tr key={student.id}>
+                            <td className="border border-gray-200 px-4 py-2">{student.ht_no}</td>
+                            <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
+                            <td className="border border-gray-200 px-4 py-2">{student.year}</td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                student.status === 'pending' 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : student.status === 'approved'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {student.status}
+                              </span>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">
+                              <div className="flex space-x-2">
+                                {student.status === 'pending' && (
+                                  <>
+                                    <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
+                                      <Check className="w-4 h-4" />
+                                    </Button>
+                                    <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                <Button size="sm" variant="outline" onClick={() => setEditingStudent(student)}>
+                                  Edit
+                                </Button>
+                              </div>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {pendingStudents.map((student) => (
-                            <tr key={student.id}>
-                              <td className="border border-gray-200 px-4 py-2">{student.ht_no}</td>
-                              <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
-                              <td className="border border-gray-200 px-4 py-2">{student.year}</td>
-                              <td className="border border-gray-200 px-4 py-2">
-                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                                  {student.status}
-                                </span>
-                              </td>
-                              <td className="border border-gray-200 px-4 py-2">
-                                <div className="flex space-x-2">
-                                  <Button size="sm" onClick={() => approveStudent(student.id)} className="bg-green-600 hover:bg-green-700">
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                  <Button size="sm" variant="destructive" onClick={() => rejectStudent(student.id)}>
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">No pending student approvals</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Approved Students */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="w-5 h-5" />
-                    <span>Approved Students ({approvedStudents.length})</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {approvedStudents.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-200">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="border border-gray-200 px-4 py-2 text-left">H.T No.</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Student Name</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
-                            <th className="border border-gray-200 px-4 py-2 text-left">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {approvedStudents.map((student) => (
-                            <tr key={student.id}>
-                              <td className="border border-gray-200 px-4 py-2">{student.ht_no}</td>
-                              <td className="border border-gray-200 px-4 py-2">{student.student_name}</td>
-                              <td className="border border-gray-200 px-4 py-2">{student.year}</td>
-                              <td className="border border-gray-200 px-4 py-2">
-                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                  {student.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 text-lg">No approved students yet</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No students found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="events">
@@ -839,22 +856,74 @@ const AdminDashboard = () => {
           <TabsContent value="gallery">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Image className="w-5 h-5" />
-                  <span>Department Gallery</span>
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center space-x-2">
+                    <Image className="w-5 h-5" />
+                    <span>Department Gallery</span>
+                  </CardTitle>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Media
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Gallery Item</DialogTitle>
+                      </DialogHeader>
+                      <GalleryForm onSave={addGalleryItem} />
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Image className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">Gallery feature coming soon</p>
-                  <p className="text-gray-400">Upload department photos and media</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {gallery.map((item) => (
+                    <div key={item.id} className="border rounded-lg overflow-hidden">
+                      {item.type === 'image' ? (
+                        <img src={item.url} alt={item.title} className="w-full h-48 object-cover" />
+                      ) : (
+                        <video src={item.url} className="w-full h-48 object-cover" controls />
+                      )}
+                      <div className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{item.title}</h3>
+                            <p className="text-sm text-gray-600">{item.description}</p>
+                          </div>
+                          <Button size="sm" variant="destructive" onClick={() => deleteGalleryItem(item.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                {gallery.length === 0 && (
+                  <div className="text-center py-12">
+                    <Image className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">No gallery items yet</p>
+                    <p className="text-gray-400">Add photos and videos to showcase your department</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Student Edit Modal */}
+      <Dialog open={editingStudent !== null} onOpenChange={() => setEditingStudent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Student Details</DialogTitle>
+          </DialogHeader>
+          {editingStudent && (
+            <StudentEditForm student={editingStudent} onSave={updateStudent} onCancel={() => setEditingStudent(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -1003,6 +1072,91 @@ const PlacementForm = ({ onSave }: { onSave: (data: Omit<Placement, 'id'>) => vo
         <Input id="year" type="number" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
       </div>
       <Button type="submit">Add Placement</Button>
+    </form>
+  );
+};
+
+// Gallery Form Component
+const GalleryForm = ({ onSave }: { onSave: (data: any) => void }) => {
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    description: '', 
+    type: 'image', 
+    url: '' 
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+    setFormData({ title: '', description: '', type: 'image', url: '' });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="title">Title</Label>
+        <Input id="title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
+      </div>
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+      </div>
+      <div>
+        <Label htmlFor="type">Type</Label>
+        <select id="type" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full p-2 border rounded">
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+        </select>
+      </div>
+      <div>
+        <Label htmlFor="url">URL</Label>
+        <Input id="url" type="url" value={formData.url} onChange={(e) => setFormData({...formData, url: e.target.value})} required />
+      </div>
+      <Button type="submit">Add to Gallery</Button>
+    </form>
+  );
+};
+
+// Student Edit Form Component
+const StudentEditForm = ({ student, onSave, onCancel }: { student: PendingStudent; onSave: (data: any) => void; onCancel: () => void }) => {
+  const [formData, setFormData] = useState({ 
+    student_name: student.student_name || '', 
+    ht_no: student.ht_no || '', 
+    year: student.year || '', 
+    status: student.status || 'pending'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="student_name">Student Name</Label>
+        <Input id="student_name" value={formData.student_name} onChange={(e) => setFormData({...formData, student_name: e.target.value})} required />
+      </div>
+      <div>
+        <Label htmlFor="ht_no">H.T No.</Label>
+        <Input id="ht_no" value={formData.ht_no} onChange={(e) => setFormData({...formData, ht_no: e.target.value})} required />
+      </div>
+      <div>
+        <Label htmlFor="year">Year</Label>
+        <Input id="year" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
+      </div>
+      <div>
+        <Label htmlFor="status">Status</Label>
+        <select id="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full p-2 border rounded">
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div className="flex space-x-2">
+        <Button type="submit">Update Student</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+      </div>
     </form>
   );
 };

@@ -1,53 +1,113 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Users, Calendar, GraduationCap, Trophy, BookOpen, MapPin, Phone, Mail, Eye, Target } from 'lucide-react';
+import { Users, Calendar, GraduationCap, Trophy, BookOpen, MapPin, Phone, Mail, Eye, Target, Image } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Hero = () => {
   const [selectedSection, setSelectedSection] = useState(null);
   const [showVisionMission, setShowVisionMission] = useState(false);
   const [showProgramOutcomes, setShowProgramOutcomes] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [faculty, setFaculty] = useState([]);
+  const [placements, setPlacements] = useState([]);
+  const [gallery, setGallery] = useState([]);
+
+  // Load data from database
+  useEffect(() => {
+    loadEvents();
+    loadFaculty();
+    loadPlacements();
+    loadGallery();
+  }, []);
+
+  const loadEvents = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(5);
+      
+      if (!error && data) {
+        setEvents(data);
+      }
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+
+  const loadFaculty = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('faculty')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (!error && data) {
+        setFaculty(data);
+      }
+    } catch (error) {
+      console.error('Error loading faculty:', error);
+    }
+  };
+
+  const loadPlacements = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('placements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (!error && data) {
+        setPlacements(data);
+      }
+    } catch (error) {
+      console.error('Error loading placements:', error);
+    }
+  };
+
+  const loadGallery = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('gallery')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (!error && data) {
+        setGallery(data);
+      }
+    } catch (error) {
+      console.error('Error loading gallery:', error);
+    }
+  };
 
   const sections = {
     events: {
       title: 'Events',
       icon: Calendar,
-      data: [
-        { title: 'Machine Learning Workshop', date: '2025-07-15', description: 'Hands-on workshop covering ML fundamentals' },
-        { title: 'AI Conference 2025', date: '2025-07-20', description: 'Annual conference on artificial intelligence' },
-        { title: 'Data Science Symposium', date: '2025-07-25', description: 'Industry experts sharing insights' }
-      ]
+      data: events
     },
     faculty: {
       title: 'Faculty',
       icon: GraduationCap,
-      data: [
-        { name: 'Dr. Sarah Wilson', department: 'AI & Data Science', specialization: 'Machine Learning', email: 'sarah@vignanits.ac.in' },
-        { name: 'Prof. David Brown', department: 'AI & Data Science', specialization: 'Deep Learning', email: 'david@vignanits.ac.in' },
-        { name: 'Dr. Emily Davis', department: 'AI & Data Science', specialization: 'Data Analytics', email: 'emily@vignanits.ac.in' }
-      ]
+      data: faculty
     },
     placements: {
       title: 'Placements',
       icon: Trophy,
-      data: [
-        { student: 'Alice Cooper', company: 'Google', package: '25 LPA', year: '2024' },
-        { student: 'Bob Martin', company: 'Microsoft', package: '22 LPA', year: '2024' },
-        { student: 'Carol White', company: 'Amazon', package: '28 LPA', year: '2024' },
-        { student: 'David Lee', company: 'Apple', package: '30 LPA', year: '2024' }
-      ]
+      data: placements
     },
-    research: {
-      title: 'Research',
-      icon: BookOpen,
-      data: [
-        { title: 'Machine Learning in Healthcare', authors: 'Dr. Sarah Wilson, Dr. Emily Davis', status: 'Published' },
-        { title: 'Deep Learning for Image Recognition', authors: 'Prof. David Brown', status: 'Under Review' },
-        { title: 'AI Ethics and Society', authors: 'Dr. Sarah Wilson', status: 'In Progress' }
-      ]
+    gallery: {
+      title: 'Gallery',
+      icon: Image,
+      data: gallery
     }
   };
 
@@ -142,7 +202,7 @@ const Hero = () => {
                     {key === 'events' && 'Upcoming workshops, seminars, and conferences'}
                     {key === 'faculty' && 'Meet our experienced faculty members'}
                     {key === 'placements' && 'Outstanding placement records and achievements'}
-                    {key === 'research' && 'Cutting-edge research and publications'}
+                    {key === 'gallery' && 'Department photos and videos'}
                   </CardDescription>
                 </CardContent>
               </Card>
@@ -194,77 +254,91 @@ const Hero = () => {
             <div className="space-y-4">
               {selectedSection === 'events' && (
                 <div className="grid gap-4">
-                  {sections.events.data.map((event, index) => (
+                  {sections.events.data.length > 0 ? sections.events.data.map((event, index) => (
                     <Card key={index}>
                       <CardContent className="p-4">
                         <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
                         <p className="text-gray-600 mb-2">Date: {event.date}</p>
+                        <p className="text-gray-600 mb-2">Time: {event.time}</p>
+                        <p className="text-gray-600 mb-2">Venue: {event.venue}</p>
+                        {event.speaker && <p className="text-gray-600 mb-2">Speaker: {event.speaker}</p>}
                         <p className="text-gray-700">{event.description}</p>
                       </CardContent>
                     </Card>
-                  ))}
+                  )) : (
+                    <p className="text-center text-gray-500">No events available</p>
+                  )}
                 </div>
               )}
               
               {selectedSection === 'faculty' && (
                 <div className="grid gap-4">
-                  {sections.faculty.data.map((member, index) => (
+                  {sections.faculty.data.length > 0 ? sections.faculty.data.map((member, index) => (
                     <Card key={index}>
                       <CardContent className="p-4">
                         <h3 className="font-semibold text-lg mb-2">{member.name}</h3>
-                        <p className="text-gray-600 mb-1">{member.department}</p>
-                        <p className="text-gray-600 mb-2">Specialization: {member.specialization}</p>
-                        <p className="text-gray-600">{member.email}</p>
+                        <p className="text-gray-600 mb-1">{member.position}</p>
+                        {member.expertise && <p className="text-gray-600 mb-2">Expertise: {member.expertise}</p>}
+                        {member.email && <p className="text-gray-600">{member.email}</p>}
+                        {member.bio && <p className="text-gray-700 mt-2">{member.bio}</p>}
                       </CardContent>
                     </Card>
-                  ))}
+                  )) : (
+                    <p className="text-center text-gray-500">No faculty information available</p>
+                  )}
                 </div>
               )}
               
               {selectedSection === 'placements' && (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-200 px-4 py-2 text-left">Student</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Company</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Package</th>
-                        <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sections.placements.data.map((placement, index) => (
-                        <tr key={index}>
-                          <td className="border border-gray-200 px-4 py-2">{placement.student}</td>
-                          <td className="border border-gray-200 px-4 py-2">{placement.company}</td>
-                          <td className="border border-gray-200 px-4 py-2 font-semibold text-green-600">{placement.package}</td>
-                          <td className="border border-gray-200 px-4 py-2">{placement.year}</td>
+                  {sections.placements.data.length > 0 ? (
+                    <table className="w-full border-collapse border border-gray-200">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-2 text-left">Student</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Company</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Package</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Year</th>
+                          <th className="border border-gray-200 px-4 py-2 text-left">Type</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {sections.placements.data.map((placement, index) => (
+                          <tr key={index}>
+                            <td className="border border-gray-200 px-4 py-2">{placement.student_name}</td>
+                            <td className="border border-gray-200 px-4 py-2">{placement.company}</td>
+                            <td className="border border-gray-200 px-4 py-2 font-semibold text-green-600">
+                              {placement.ctc ? `${placement.ctc} LPA` : placement.package}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-2">{placement.year}</td>
+                            <td className="border border-gray-200 px-4 py-2">{placement.type}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-center text-gray-500">No placement records available</p>
+                  )}
                 </div>
               )}
               
-              {selectedSection === 'research' && (
-                <div className="grid gap-4">
-                  {sections.research.data.map((research, index) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <h3 className="font-semibold text-lg mb-2">{research.title}</h3>
-                        <p className="text-gray-600 mb-2">Authors: {research.authors}</p>
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          research.status === 'Published' 
-                            ? 'bg-green-100 text-green-800' 
-                            : research.status === 'Under Review'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {research.status}
-                        </span>
-                      </CardContent>
-                    </Card>
-                  ))}
+              {selectedSection === 'gallery' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sections.gallery.data.length > 0 ? sections.gallery.data.map((item, index) => (
+                    <div key={index} className="border rounded-lg overflow-hidden">
+                      {item.type === 'image' ? (
+                        <img src={item.url} alt={item.title} className="w-full h-48 object-cover" />
+                      ) : (
+                        <video src={item.url} className="w-full h-48 object-cover" controls />
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-semibold">{item.title}</h3>
+                        {item.description && <p className="text-sm text-gray-600">{item.description}</p>}
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-center text-gray-500 col-span-3">No gallery items available</p>
+                  )}
                 </div>
               )}
             </div>
