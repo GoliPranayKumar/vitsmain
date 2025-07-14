@@ -39,7 +39,7 @@ const Header = () => {
                 <span className="text-white font-bold text-sm">AI</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">AI & Data Science</h1>
+                <h1 className="text-lg font-bold text-gray-900">AI & DS</h1>
                 <p className="text-xs text-gray-600">Vignan Institute of Technology and Science</p>
               </div>
             </div>
