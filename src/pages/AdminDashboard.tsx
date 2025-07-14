@@ -349,6 +349,7 @@ const AdminDashboard = () => {
       
       if (!error) {
         toast({ title: "Event deleted successfully" });
+        loadEvents(); // Reload events after deletion
       }
     } catch (error) {
       console.error('Error deleting event:', error);
@@ -379,6 +380,7 @@ const AdminDashboard = () => {
       
       if (!error) {
         toast({ title: "Faculty member removed successfully" });
+        loadFaculty(); // Reload faculty after deletion
       }
     } catch (error) {
       console.error('Error deleting faculty:', error);
@@ -409,6 +411,7 @@ const AdminDashboard = () => {
       
       if (!error) {
         toast({ title: "Placement record deleted successfully" });
+        loadPlacements(); // Reload placements after deletion
       }
     } catch (error) {
       console.error('Error deleting placement:', error);
@@ -439,6 +442,7 @@ const AdminDashboard = () => {
       
       if (!error) {
         toast({ title: "Gallery item deleted successfully" });
+        loadGallery(); // Reload gallery after deletion
       }
     } catch (error) {
       console.error('Error deleting gallery item:', error);
@@ -605,39 +609,39 @@ const AdminDashboard = () => {
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 gap-1">
             <TabsTrigger value="students" className="flex items-center space-x-1 text-xs lg:text-sm">
               <Users className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Students</span>
+              <span>Students</span>
             </TabsTrigger>
             <TabsTrigger value="certifications" className="flex items-center space-x-1 text-xs lg:text-sm">
               <BookOpen className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Certs</span>
+              <span>Certs</span>
             </TabsTrigger>
             <TabsTrigger value="events" className="flex items-center space-x-1 text-xs lg:text-sm">
               <Calendar className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Events</span>
+              <span>Events</span>
             </TabsTrigger>
             <TabsTrigger value="faculty" className="flex items-center space-x-1 text-xs lg:text-sm">
               <GraduationCap className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Faculty</span>
+              <span>Faculty</span>
             </TabsTrigger>
             <TabsTrigger value="placements" className="flex items-center space-x-1 text-xs lg:text-sm">
               <Trophy className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Placements</span>
+              <span>Placements</span>
             </TabsTrigger>
             <TabsTrigger value="attendance" className="flex items-center space-x-1 text-xs lg:text-sm">
               <Clock className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Attendance</span>
+              <span>Attendance</span>
             </TabsTrigger>
             <TabsTrigger value="results" className="flex items-center space-x-1 text-xs lg:text-sm">
               <FileText className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Results</span>
+              <span>Results</span>
             </TabsTrigger>
             <TabsTrigger value="timetable" className="flex items-center space-x-1 text-xs lg:text-sm">
               <BarChart3 className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Timetable</span>
+              <span>Timetable</span>
             </TabsTrigger>
             <TabsTrigger value="gallery" className="flex items-center space-x-1 text-xs lg:text-sm">
               <Image className="w-3 h-3 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Gallery</span>
+              <span>Gallery</span>
             </TabsTrigger>
           </TabsList>
 

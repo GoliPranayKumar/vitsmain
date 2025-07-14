@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import AddSlotModal from './AddSlotModal';
 
 const TimetableManager = () => {
@@ -17,91 +17,121 @@ const TimetableManager = () => {
   const [editingSlot, setEditingSlot] = useState(null);
   const [showAddSlot, setShowAddSlot] = useState(false);
   const [selectedDay, setSelectedDay] = useState('Monday');
-
-  const timeSlots = [
-    '9:00-10:00 AM',
-    '10:00-11:00 AM',
-    '11:00-12:00 PM',
-    '12:00-1:00 PM',
-    '1:00-2:00 PM',
-    '2:00-3:00 PM',
-    '3:00-4:00 PM',
-    '4:00-5:00 PM'
-  ];
+  const [timetableData, setTimetableData] = useState({});
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  const [timetableData, setTimetableData] = useState({
-    '1': {
-      'Monday': {
-        '9:00-10:00 AM': 'Mathematics',
-        '10:00-11:00 AM': 'Physics',
-        '11:00-12:00 PM': 'Programming',
-        '12:00-1:00 PM': 'Lunch Break',
-        '1:00-2:00 PM': 'Data Structures',
-        '2:00-3:00 PM': 'Lab',
-        '3:00-4:00 PM': 'Lab',
-        '4:00-5:00 PM': 'Free'
-      },
-      'Tuesday': {
-        '9:00-10:00 AM': 'Programming',
-        '10:00-11:00 AM': 'Mathematics',
-        '11:00-12:00 PM': 'Physics',
-        '12:00-1:00 PM': 'Lunch Break',
-        '1:00-2:00 PM': 'English',
-        '2:00-3:00 PM': 'Data Structures',
-        '3:00-4:00 PM': 'Lab',
-        '4:00-5:00 PM': 'Free'
+  // Load timetable data from database
+  const loadTimetableData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('timetable')
+        .select('*')
+        .order('hour');
+      
+      if (!error && data) {
+        // Transform data into the expected format
+        const transformedData = {};
+        data.forEach(slot => {
+          if (!transformedData[slot.year]) {
+            transformedData[slot.year] = {};
+          }
+          if (!transformedData[slot.year][slot.day]) {
+            transformedData[slot.year][slot.day] = {};
+          }
+          transformedData[slot.year][slot.day][slot.hour] = slot.subject_name;
+        });
+        setTimetableData(transformedData);
       }
-      // ... other days
-    },
-    '2': {
-      'Monday': {
-        '9:00-10:00 AM': 'Machine Learning',
-        '10:00-11:00 AM': 'Data Science',
-        '11:00-12:00 PM': 'Statistics',
-        '12:00-1:00 PM': 'Lunch Break',
-        '1:00-2:00 PM': 'Python',
-        '2:00-3:00 PM': 'ML Lab',
-        '3:00-4:00 PM': 'ML Lab',
-        '4:00-5:00 PM': 'Free'
-      }
-      // ... other days
+    } catch (error) {
+      console.error('Error loading timetable:', error);
     }
-    // ... other years
-  });
-
-  const updateTimetableSlot = (year, day, timeSlot, subject) => {
-    setTimetableData(prev => ({
-      ...prev,
-      [year]: {
-        ...prev[year],
-        [day]: {
-          ...prev[year]?.[day],
-          [timeSlot]: subject
-        }
-      }
-    }));
-    toast({ title: "Timetable updated successfully" });
   };
 
-  const deleteSlot = (year, day, timeSlot) => {
-    setTimetableData(prev => ({
-      ...prev,
-      [year]: {
-        ...prev[year],
-        [day]: {
-          ...prev[year]?.[day],
-          [timeSlot]: 'Free'
-        }
+  useEffect(() => {
+    loadTimetableData();
+  }, []);
+
+  const updateTimetableSlot = async (year, day, timeSlot, subject) => {
+    try {
+      // Check if slot exists
+      const { data: existing } = await supabase
+        .from('timetable')
+        .select('id')
+        .eq('year', parseInt(year))
+        .eq('day', day)
+        .eq('hour', timeSlot);
+
+      if (existing && existing.length > 0) {
+        // Update existing slot
+        const { error } = await supabase
+          .from('timetable')
+          .update({ subject_name: subject })
+          .eq('id', existing[0].id);
+        
+        if (error) throw error;
+      } else {
+        // Insert new slot
+        const { error } = await supabase
+          .from('timetable')
+          .insert({
+            year: parseInt(year),
+            day: day,
+            hour: timeSlot,
+            subject_name: subject
+          });
+        
+        if (error) throw error;
       }
-    }));
-    toast({ title: "Time slot cleared" });
+
+      // Update local state
+      setTimetableData(prev => ({
+        ...prev,
+        [year]: {
+          ...prev[year],
+          [day]: {
+            ...prev[year]?.[day],
+            [timeSlot]: subject
+          }
+        }
+      }));
+      
+      toast({ title: "Timetable updated successfully" });
+    } catch (error) {
+      console.error('Error updating timetable:', error);
+      toast({ title: "Error updating timetable", variant: "destructive" });
+    }
   };
 
-  const handleAddSlot = (slotData) => {
+  const deleteSlot = async (year, day, timeSlot) => {
+    try {
+      const { error } = await supabase
+        .from('timetable')
+        .delete()
+        .eq('year', parseInt(year))
+        .eq('day', day)
+        .eq('hour', timeSlot);
+      
+      if (error) throw error;
+
+      // Update local state
+      setTimetableData(prev => {
+        const newData = { ...prev };
+        if (newData[year]?.[day]) {
+          delete newData[year][day][timeSlot];
+        }
+        return newData;
+      });
+      
+      toast({ title: "Time slot deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting slot:', error);
+      toast({ title: "Error deleting slot", variant: "destructive" });
+    }
+  };
+
+  const handleAddSlot = async (slotData) => {
     const { year, day, startTime, endTime, subject } = slotData;
-    const timeSlot = `${startTime}-${endTime}`;
     
     // Convert 24-hour format to 12-hour format for display
     const formatTime = (time) => {
@@ -114,21 +144,38 @@ const TimetableManager = () => {
     
     const formattedTimeSlot = `${formatTime(startTime)}-${formatTime(endTime)}`;
     
-    setTimetableData(prev => ({
-      ...prev,
-      [year]: {
-        ...prev[year],
-        [day]: {
-          ...prev[year]?.[day],
-          [formattedTimeSlot]: subject
+    try {
+      const { error } = await supabase
+        .from('timetable')
+        .insert({
+          year: parseInt(year),
+          day: day,
+          hour: formattedTimeSlot,
+          subject_name: subject
+        });
+      
+      if (error) throw error;
+
+      // Update local state
+      setTimetableData(prev => ({
+        ...prev,
+        [year]: {
+          ...prev[year],
+          [day]: {
+            ...prev[year]?.[day],
+            [formattedTimeSlot]: subject
+          }
         }
-      }
-    }));
-    
-    toast({ 
-      title: "New time slot added successfully",
-      description: `${subject} added to ${day} at ${formattedTimeSlot}`
-    });
+      }));
+      
+      toast({ 
+        title: "New time slot added successfully",
+        description: `${subject} added to ${day} at ${formattedTimeSlot}`
+      });
+    } catch (error) {
+      console.error('Error adding slot:', error);
+      toast({ title: "Error adding slot", variant: "destructive" });
+    }
   };
 
   const SlotEditModal = ({ slot, onSave, onClose }) => {
@@ -167,6 +214,11 @@ const TimetableManager = () => {
         </DialogContent>
       </Dialog>
     );
+  };
+
+  // Get all unique time slots for the selected year and day
+  const getTimeSlotsForDay = (year, day) => {
+    return Object.keys(timetableData[year]?.[day] || {}).sort();
   };
 
   return (
@@ -221,28 +273,33 @@ const TimetableManager = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {timeSlots.map(timeSlot => {
-                    const subject = timetableData[selectedYear]?.[day]?.[timeSlot] || 'Free';
-                    return (
-                      <div key={timeSlot} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <span className="font-medium text-sm">{timeSlot}</span>
-                          <span className="ml-4 text-gray-700">{subject}</span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingSlot({
-                              year: selectedYear,
-                              day,
-                              timeSlot,
-                              subject
-                            })}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          {subject !== 'Free' && (
+                  {getTimeSlotsForDay(selectedYear, day).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No time slots scheduled for this day.</p>
+                      <p>Click "Add to {day}" to create your first time slot.</p>
+                    </div>
+                  ) : (
+                    getTimeSlotsForDay(selectedYear, day).map(timeSlot => {
+                      const subject = timetableData[selectedYear]?.[day]?.[timeSlot];
+                      return (
+                        <div key={timeSlot} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex-1">
+                            <span className="font-medium text-sm">{timeSlot}</span>
+                            <span className="ml-4 text-gray-700">{subject}</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingSlot({
+                                year: selectedYear,
+                                day,
+                                timeSlot,
+                                subject
+                              })}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="destructive"
@@ -250,11 +307,11 @@ const TimetableManager = () => {
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>
