@@ -138,13 +138,28 @@ const StudentDashboard = () => {
     }
 
     try {
-      // Debug: Check authentication
+      // Debug: Check authentication state thoroughly
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('Auth user:', user);
-      console.log('User profile:', userProfile);
+      console.log('🔍 Debug - Auth user:', user);
+      console.log('🔍 Debug - Auth error:', authError);
+      console.log('🔍 Debug - User profile:', userProfile);
       
       if (authError || !user) {
         throw new Error('User not authenticated');
+      }
+
+      // Debug: Test the RLS policy condition manually
+      const { data: profileCheck, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id, ht_no')
+        .eq('ht_no', userProfile.ht_no)
+        .eq('id', user.id);
+      
+      console.log('🔍 Debug - Profile check:', profileCheck);
+      console.log('🔍 Debug - Profile error:', profileError);
+
+      if (!profileCheck || profileCheck.length === 0) {
+        throw new Error(`Profile mismatch: auth.uid=${user.id}, profile.ht_no=${userProfile.ht_no}`);
       }
 
       // Get the file extension from the uploaded file
@@ -152,27 +167,42 @@ const StudentDashboard = () => {
       const fileName = `${Date.now()}-${certTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
       const path = `${userProfile.ht_no}/${fileName}`;
 
+      console.log('🔍 Debug - File path:', path);
+
       // Upload file to storage
       const { error: uploadError } = await supabase.storage
         .from('certifications')
         .upload(path, certFile, { upsert: true });
 
       if (uploadError) {
+        console.log('🔍 Debug - Upload error:', uploadError);
         throw uploadError;
       }
 
       // Get public URL for the file
       const publicURL = supabase.storage.from('certifications').getPublicUrl(path).data.publicUrl;
+      console.log('🔍 Debug - Public URL:', publicURL);
 
-      // Insert record to database - use student_certificates table
-      const { error: dbError } = await supabase
+      // Insert record to database with extensive debugging
+      console.log('🔍 Debug - About to insert:', {
+        htno: userProfile.ht_no,
+        title: certTitle,
+        description: certDesc,
+        file_url: publicURL,
+      });
+
+      const { data: insertData, error: dbError } = await supabase
         .from('student_certificates')
         .insert({
           htno: userProfile.ht_no,
           title: certTitle,
           description: certDesc,
           file_url: publicURL,
-        });
+        })
+        .select();
+
+      console.log('🔍 Debug - Insert result:', insertData);
+      console.log('🔍 Debug - Insert error:', dbError);
 
       if (dbError) {
         throw dbError;
