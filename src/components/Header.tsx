@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, UserCheck, Menu, X } from 'lucide-react';
 import LoginModal from './LoginModal';
-import ProfileCreationModal from './ProfileCreationModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
   const [showStudentLogin, setShowStudentLogin] = useState(false);
@@ -130,10 +130,6 @@ const Header = () => {
         isOpen={showStudentLogin}
         onClose={() => setShowStudentLogin(false)}
         userType="student"
-        onOpenCreateProfile={() => {
-          setShowStudentLogin(false);
-          setShowCreateProfile(true);
-        }}
       />
       <LoginModal
         isOpen={showAdminLogin}
@@ -141,11 +137,6 @@ const Header = () => {
         userType="admin"
       />
 
-      {/* Create Profile Modal */}
-      <ProfileCreationModal
-        open={showCreateProfile}
-        onOpenChange={(open) => setShowCreateProfile(open)}
-      />
     </>
   );
 };

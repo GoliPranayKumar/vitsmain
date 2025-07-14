@@ -17,10 +17,9 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   userType: 'student' | 'admin';
-  onOpenCreateProfile?: () => void;
 }
 
-const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginModalProps) => {
+const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,15 +35,6 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
 
     try {
       if (isSignUp) {
-        if (userType !== 'admin') {
-          toast({
-            title: 'Students must use Create Profile',
-            description: 'Please use the Create Profile button below.',
-            variant: 'destructive',
-          });
-          return;
-        }
-
         const result = await signUp(email, password, userType);
         if (result.error) {
           setError(result.error.message);
@@ -52,8 +42,8 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
         }
 
         toast({
-          title: 'Admin Account Created',
-          description: 'Admin account has been created successfully.',
+          title: 'Account Created',
+          description: userType === 'admin' ? 'Admin account created successfully.' : 'Student account created. Please complete your profile.',
         });
 
         resetForm();
@@ -94,9 +84,7 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600">
             {isSignUp
-              ? userType === 'admin'
-                ? 'Create a new admin account'
-                : 'Students must use Create Profile instead.'
+              ? `Create a new ${userType} account`
               : `Enter your credentials to access the ${userType} dashboard`}
           </DialogDescription>
         </DialogHeader>
@@ -188,13 +176,14 @@ const LoginModal = ({ isOpen, onClose, userType, onOpenCreateProfile }: LoginMod
                 <button
                   type="button"
                   onClick={() => {
-                    handleClose();
-                    onOpenCreateProfile?.();
+                    setIsSignUp(!isSignUp);
+                    setError('');
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center gap-2 w-full"
                   disabled={isLoading}
                 >
-                  New student? Create your profile
+                  <UserPlus className="w-4 h-4" />
+                  {isSignUp ? 'Already have an account? Sign In' : 'New Student? Create Account'}
                 </button>
               </div>
             )}
