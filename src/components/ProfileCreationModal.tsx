@@ -52,16 +52,21 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 1. Check if in verified_students
+      // 1. Check if in verified_students with case-insensitive and trimmed comparison
+      console.log('Checking verification for:', { ht_no: ht_no.trim(), student_name: student_name.trim(), year: year.trim() });
+      
       const { data: verified, error: verifyError } = await supabase
         .from('verified_students')
         .select('*')
-        .eq('ht_no', ht_no)
-        .eq('student_name', student_name)
-        .eq('year', year)
+        .ilike('ht_no', ht_no.trim())
+        .ilike('student_name', student_name.trim())
+        .ilike('year', year.trim())
         .maybeSingle();
 
+      console.log('Verification result:', { verified, verifyError });
+
       if (verifyError || !verified) {
+        console.error('Verification failed:', verifyError);
         toast({
           title: 'Verification Failed',
           description: 'You are not listed in verified students.',
