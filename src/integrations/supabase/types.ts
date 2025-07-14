@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           attended_classes: number | null
           created_at: string | null
+          ht_no: string
           id: string
           month: string
           percentage: number | null
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           attended_classes?: number | null
           created_at?: string | null
+          ht_no: string
           id?: string
           month: string
           percentage?: number | null
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           attended_classes?: number | null
           created_at?: string | null
+          ht_no?: string
           id?: string
           month?: string
           percentage?: number | null
@@ -47,11 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      certificates: {
+        Row: {
+          certificate_name: string
+          certificate_url: string
+          ht_no: string
+          id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          certificate_name: string
+          certificate_url: string
+          ht_no: string
+          id?: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          certificate_name?: string
+          certificate_url?: string
+          ht_no?: string
+          id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: []
+      }
       certifications: {
         Row: {
           created_at: string | null
           date_issued: string
           file_url: string | null
+          ht_no: string | null
           id: string
           issuer: string
           status: string | null
@@ -62,6 +90,7 @@ export type Database = {
           created_at?: string | null
           date_issued: string
           file_url?: string | null
+          ht_no?: string | null
           id?: string
           issuer: string
           status?: string | null
@@ -72,6 +101,7 @@ export type Database = {
           created_at?: string | null
           date_issued?: string
           file_url?: string | null
+          ht_no?: string | null
           id?: string
           issuer?: string
           status?: string | null
@@ -187,6 +217,7 @@ export type Database = {
           cgpa: number | null
           created_at: string | null
           file_url: string | null
+          ht_no: string | null
           id: string
           semester: number
           sgpa: number | null
@@ -197,6 +228,7 @@ export type Database = {
           cgpa?: number | null
           created_at?: string | null
           file_url?: string | null
+          ht_no?: string | null
           id?: string
           semester: number
           sgpa?: number | null
@@ -207,11 +239,66 @@ export type Database = {
           cgpa?: number | null
           created_at?: string | null
           file_url?: string | null
+          ht_no?: string | null
           id?: string
           semester?: number
           sgpa?: number | null
           student_id?: string | null
           year?: number
+        }
+        Relationships: []
+      }
+      student_certificates: {
+        Row: {
+          description: string | null
+          file_url: string
+          htno: string
+          id: string
+          title: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          description?: string | null
+          file_url: string
+          htno: string
+          id?: string
+          title?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          description?: string | null
+          file_url?: string
+          htno?: string
+          id?: string
+          title?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: []
+      }
+      student_results: {
+        Row: {
+          cgpa: number
+          htno: string
+          id: string
+          result_url: string
+          semester: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          cgpa: number
+          htno: string
+          id?: string
+          result_url: string
+          semester: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          cgpa?: number
+          htno?: string
+          id?: string
+          result_url?: string
+          semester?: string
+          uploaded_at?: string | null
         }
         Relationships: []
       }
@@ -264,6 +351,7 @@ export type Database = {
         Row: {
           ht_no: string | null
           id: string
+          photo_url: string | null
           role: string
           status: string | null
           student_name: string | null
@@ -272,6 +360,7 @@ export type Database = {
         Insert: {
           ht_no?: string | null
           id?: string
+          photo_url?: string | null
           role: string
           status?: string | null
           student_name?: string | null
@@ -280,6 +369,7 @@ export type Database = {
         Update: {
           ht_no?: string | null
           id?: string
+          photo_url?: string | null
           role?: string
           status?: string | null
           student_name?: string | null
