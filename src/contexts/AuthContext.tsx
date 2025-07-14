@@ -94,7 +94,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          const profile = await loadUserProfile(currentSession.user.id);
+          let profile = await loadUserProfile(currentSession.user.id);
+          
+          // Auto-create admin profile if it doesn't exist
+          if (!profile && currentSession.user.email === 'admin@vignanits.ac.in') {
+            const { error } = await supabase.from('user_profiles').insert({
+              id: currentSession.user.id,
+              role: 'admin',
+              status: 'approved'
+            });
+            
+            if (!error) {
+              profile = await loadUserProfile(currentSession.user.id);
+            }
+          }
+          
           setUserProfile(profile);
 
           if (!profile && currentSession.user.user_metadata?.role === 'student') {
