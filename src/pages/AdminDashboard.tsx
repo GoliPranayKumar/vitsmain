@@ -18,8 +18,13 @@ interface PendingStudent {
   id: string;
   ht_no: string;
   student_name: string;
-  year: number;
+  year: number | string;
   status: string;
+  phone?: string;
+  address?: string;
+  emergency_no?: string;
+  photo_url?: string;
+  email?: string;
 }
 
 interface Event {
@@ -1127,37 +1132,150 @@ const StudentEditForm = ({ student, onSave, onCancel }: { student: PendingStuden
     student_name: student.student_name || '', 
     ht_no: student.ht_no || '', 
     year: student.year || '', 
-    status: student.status || 'pending'
+    status: student.status || 'pending',
+    phone: student.phone || '',
+    address: student.address || '',
+    emergency_no: student.emergency_no || '',
+    email: student.email || ''
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    let photoUrl = student.photo_url;
+    
+    // Handle photo upload if a new file is selected
+    if (photoFile) {
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('profile_photos')
+          .upload(`profiles/${student.id}/photo.jpg`, photoFile, { upsert: true });
+        
+        if (uploadError) throw uploadError;
+        
+        const { data } = supabase.storage
+          .from('profile_photos')
+          .getPublicUrl(`profiles/${student.id}/photo.jpg`);
+        photoUrl = data.publicUrl;
+      } catch (error) {
+        toast({
+          title: 'Error uploading photo',
+          description: 'Photo upload failed, but other data will be saved.',
+          variant: 'destructive'
+        });
+      }
+    }
+    
+    onSave({
+      ...formData,
+      photo_url: photoUrl
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
       <div>
         <Label htmlFor="student_name">Student Name</Label>
-        <Input id="student_name" value={formData.student_name} onChange={(e) => setFormData({...formData, student_name: e.target.value})} required />
+        <Input 
+          id="student_name" 
+          value={formData.student_name} 
+          onChange={(e) => setFormData({...formData, student_name: e.target.value})} 
+          required 
+        />
       </div>
+      
       <div>
         <Label htmlFor="ht_no">H.T No.</Label>
-        <Input id="ht_no" value={formData.ht_no} onChange={(e) => setFormData({...formData, ht_no: e.target.value})} required />
+        <Input 
+          id="ht_no" 
+          value={formData.ht_no} 
+          onChange={(e) => setFormData({...formData, ht_no: e.target.value})} 
+          required 
+        />
       </div>
+      
       <div>
         <Label htmlFor="year">Year</Label>
-        <Input id="year" value={formData.year} onChange={(e) => setFormData({...formData, year: e.target.value})} required />
+        <Input 
+          id="year" 
+          value={formData.year} 
+          onChange={(e) => setFormData({...formData, year: e.target.value})} 
+          required 
+        />
       </div>
+
+      <div>
+        <Label htmlFor="email">Email</Label>
+        <Input 
+          id="email" 
+          type="email"
+          value={formData.email} 
+          onChange={(e) => setFormData({...formData, email: e.target.value})} 
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="phone">Phone Number</Label>
+        <Input 
+          id="phone" 
+          type="tel"
+          value={formData.phone} 
+          onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="address">Address</Label>
+        <Textarea 
+          id="address" 
+          value={formData.address} 
+          onChange={(e) => setFormData({...formData, address: e.target.value})} 
+          rows={2}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="emergency_no">Emergency Contact (Parent Number)</Label>
+        <Input 
+          id="emergency_no" 
+          type="tel"
+          value={formData.emergency_no} 
+          onChange={(e) => setFormData({...formData, emergency_no: e.target.value})} 
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="photo">Profile Photo</Label>
+        <div className="flex items-center gap-2">
+          <Input 
+            id="photo" 
+            type="file"
+            accept="image/*"
+            onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} 
+          />
+          {student.photo_url && (
+            <span className="text-sm text-muted-foreground">Current photo exists</span>
+          )}
+        </div>
+      </div>
+      
       <div>
         <Label htmlFor="status">Status</Label>
-        <select id="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full p-2 border rounded">
+        <select 
+          id="status" 
+          value={formData.status} 
+          onChange={(e) => setFormData({...formData, status: e.target.value})} 
+          className="w-full p-2 border rounded h-10"
+        >
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <div className="flex space-x-2">
+      
+      <div className="flex space-x-2 pt-4">
         <Button type="submit">Update Student</Button>
         <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
       </div>
