@@ -34,7 +34,10 @@ const AppRoutes: React.FC = () => {
   }
 
   const showModal =
-    !!user && userProfile?.role === 'student' && needsProfileCreation;
+    !!user &&
+    !loading &&
+    userProfile?.role === 'student' &&
+    needsProfileCreation;
 
   return (
     <>
