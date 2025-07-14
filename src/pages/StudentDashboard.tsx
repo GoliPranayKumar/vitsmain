@@ -94,9 +94,9 @@ const StudentDashboard = () => {
   const fetchcertificates = async () => {
     if (!userProfile?.ht_no) return;
     const { data } = await supabase
-      .from('certifications')
+      .from('student_certificates')
       .select('*')
-      .eq('ht_no', userProfile.ht_no);
+      .eq('htno', userProfile.ht_no);
     setcertificates(data || []);
   };
 
@@ -138,6 +138,15 @@ const StudentDashboard = () => {
     }
 
     try {
+      // Debug: Check authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('Auth user:', user);
+      console.log('User profile:', userProfile);
+      
+      if (authError || !user) {
+        throw new Error('User not authenticated');
+      }
+
       // Get the file extension from the uploaded file
       const fileExt = certFile.name.split('.').pop();
       const fileName = `${Date.now()}-${certTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
@@ -152,17 +161,17 @@ const StudentDashboard = () => {
         throw uploadError;
       }
 
-      // Insert record to database
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get public URL for the file
+      const publicURL = supabase.storage.from('certifications').getPublicUrl(path).data.publicUrl;
+
+      // Insert record to database - use student_certificates table
       const { error: dbError } = await supabase
-        .from('certifications')
+        .from('student_certificates')
         .insert({
-          ht_no: userProfile.ht_no,
-          student_id: user?.id,
+          htno: userProfile.ht_no,
           title: certTitle,
-          issuer: 'Student Upload',
-          date_issued: new Date().toISOString().split('T')[0],
-          file_url: path,
+          description: certDesc,
+          file_url: publicURL,
         });
 
       if (dbError) {
@@ -190,8 +199,15 @@ const StudentDashboard = () => {
   };
 
   const deleteCert = async (fileUrl: string, id: string) => {
-    await supabase.storage.from('certifications').remove([fileUrl]);
-    await supabase.from('certifications').delete().eq('id', id);
+    // Extract path from URL for storage deletion
+    const url = new URL(fileUrl);
+    const pathSegments = url.pathname.split('/');
+    const fileName = pathSegments[pathSegments.length - 1];
+    const htno = pathSegments[pathSegments.length - 2];
+    const storagePath = `${htno}/${fileName}`;
+    
+    await supabase.storage.from('certifications').remove([storagePath]);
+    await supabase.from('student_certificates').delete().eq('id', id);
     toast({ title: 'Certificate deleted' });
     fetchcertificates();
   };
@@ -362,9 +378,9 @@ const StudentDashboard = () => {
               <div key={c.id} className="flex justify-between items-center">
                 <span>{c.title}</span>
                 <div className="space-x-2">
-                  <a href={supabase.storage.from('certifications').getPublicUrl(c.file_url).data.publicUrl} target="_blank">
-                    <Button size="sm" variant="ghost"><Eye size={14} /></Button>
-                  </a>
+                   <a href={c.file_url} target="_blank">
+                     <Button size="sm" variant="ghost"><Eye size={14} /></Button>
+                   </a>
                   <Button variant="destructive" size="sm" onClick={() => deleteCert(c.file_url, c.id)}>
                     <Trash2 size={14} />
                   </Button>
