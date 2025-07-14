@@ -153,11 +153,12 @@ const StudentDashboard = () => {
       }
 
       // Insert record to database
+      const { data: { user } } = await supabase.auth.getUser();
       const { error: dbError } = await supabase
         .from('certifications')
         .insert({
           ht_no: userProfile.ht_no,
-          student_id: userProfile.id,
+          student_id: user?.id,
           title: certTitle,
           issuer: 'Student Upload',
           date_issued: new Date().toISOString().split('T')[0],
