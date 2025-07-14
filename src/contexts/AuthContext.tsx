@@ -15,7 +15,10 @@ interface UserProfile {
   phone?: string | null;
   section?: string | null;
   semester?: string | null;
-  cgpa?: string | null;
+  cgpa?: number | null;
+  photo_url?: string | null;
+  address?: string | null;
+  emergency_no?: string | null;
 }
 
 interface AuthContextType {

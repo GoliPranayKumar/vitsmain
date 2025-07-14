@@ -6,9 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import ProfileCompletionModal from '@/components/ProfileCompletionModal';
 import {
-  LogOut, Eye, Trash2, Upload, Pencil,
+  LogOut, Eye, Trash2, Upload, Pencil, Edit, Save, X,
 } from 'lucide-react';
 
 const StudentDashboard = () => {
@@ -28,6 +31,15 @@ const StudentDashboard = () => {
   const [certDesc, setCertDesc] = useState('');
   const [certFile, setCertFile] = useState<File | null>(null);
 
+  // Profile completion and editing states
+  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    phone: '',
+    address: '',
+    emergency_no: ''
+  });
+
   // ✅ All hooks MUST be called before any early returns
   useEffect(() => {
     if (userProfile?.ht_no) {
@@ -36,8 +48,19 @@ const StudentDashboard = () => {
       fetchResults();
       fetchAttendance();
       fetchTimetable();
+      checkProfileCompletion();
     }
   }, [userProfile]);
+
+  // Check if profile completion is needed
+  const checkProfileCompletion = () => {
+    if (userProfile && userProfile.status === 'approved') {
+      const isIncomplete = !userProfile.phone || !userProfile.address || !userProfile.emergency_no;
+      if (isIncomplete) {
+        setShowProfileCompletion(true);
+      }
+    }
+  };
 
   // ✅ Now safe to do early returns AFTER all hooks
   if (loading) {
@@ -130,6 +153,52 @@ const StudentDashboard = () => {
     fetchcertificates();
   };
 
+  // Edit profile functions
+  const handleEditProfile = () => {
+    setEditForm({
+      phone: userProfile.phone || '',
+      address: userProfile.address || '',
+      emergency_no: userProfile.emergency_no || ''
+    });
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          phone: editForm.phone,
+          address: editForm.address,
+          emergency_no: editForm.emergency_no
+        })
+        .eq('id', userProfile.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Profile updated successfully',
+        description: 'Your profile has been updated.',
+      });
+
+      setShowEditProfile(false);
+      // Refresh auth context to get updated profile
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update profile',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleProfileCompletion = () => {
+    setShowProfileCompletion(false);
+    // Refresh to get updated profile
+    window.location.reload();
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -182,14 +251,25 @@ const StudentDashboard = () => {
         </TabsList>
 
         <TabsContent value="profile">
-          <Card><CardContent className="p-6 grid grid-cols-2 gap-4">
-            <p><strong>Full Name:</strong> {userProfile.student_name}</p>
-            <p><strong>Email:</strong> {userProfile.email}</p>
-            <p><strong>Phone:</strong> {userProfile.phone}</p>
-            <p><strong>Year:</strong> {userProfile.year}</p>
-            <p><strong>Section:</strong> {userProfile.section}</p>
-            <p><strong>Semester:</strong> {userProfile.semester}</p>
-          </CardContent></Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold">Profile Information</h3>
+                <Button onClick={handleEditProfile} variant="outline" size="sm">
+                  <Edit className="mr-2" size={16} />
+                  Edit Profile
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <p><strong>Full Name:</strong> {userProfile.student_name}</p>
+                <p><strong>Email:</strong> {userProfile.email}</p>
+                <p><strong>Phone:</strong> {userProfile.phone || 'Not provided'}</p>
+                <p><strong>Year:</strong> {userProfile.year}</p>
+                <p><strong>Address:</strong> {userProfile.address || 'Not provided'}</p>
+                <p><strong>Emergency Contact:</strong> {userProfile.emergency_no || 'Not provided'}</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="attendance">
@@ -279,6 +359,71 @@ const StudentDashboard = () => {
           </CardContent></Card>
         </TabsContent>
       </Tabs>
+
+      {/* Profile Completion Modal */}
+      <ProfileCompletionModal
+        isOpen={showProfileCompletion}
+        userProfile={userProfile}
+        onComplete={handleProfileCompletion}
+      />
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter your phone number"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={editForm.address}
+                onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Enter your address"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-emergency">Emergency Contact (Parent Number)</Label>
+              <Input
+                id="edit-emergency"
+                type="tel"
+                value={editForm.emergency_no}
+                onChange={(e) => setEditForm(prev => ({ ...prev, emergency_no: e.target.value }))}
+                placeholder="Enter parent/emergency contact number"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSaveProfile} className="flex-1">
+                <Save className="mr-2" size={16} />
+                Save Changes
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowEditProfile(false)}
+                className="flex-1"
+              >
+                <X className="mr-2" size={16} />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

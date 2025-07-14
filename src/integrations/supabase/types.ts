@@ -406,28 +406,49 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          address: string | null
+          cgpa: number | null
+          email: string | null
+          emergency_no: string | null
           ht_no: string | null
           id: string
+          phone: string | null
           photo_url: string | null
           role: string
+          section: string | null
+          semester: string | null
           status: string | null
           student_name: string | null
           year: string | null
         }
         Insert: {
+          address?: string | null
+          cgpa?: number | null
+          email?: string | null
+          emergency_no?: string | null
           ht_no?: string | null
           id?: string
+          phone?: string | null
           photo_url?: string | null
           role: string
+          section?: string | null
+          semester?: string | null
           status?: string | null
           student_name?: string | null
           year?: string | null
         }
         Update: {
+          address?: string | null
+          cgpa?: number | null
+          email?: string | null
+          emergency_no?: string | null
           ht_no?: string | null
           id?: string
+          phone?: string | null
           photo_url?: string | null
           role?: string
+          section?: string | null
+          semester?: string | null
           status?: string | null
           student_name?: string | null
           year?: string | null
