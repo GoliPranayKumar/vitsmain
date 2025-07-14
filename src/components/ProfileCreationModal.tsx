@@ -158,10 +158,10 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
                 <SelectValue placeholder="Select your year" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">1st Year</SelectItem>
-                <SelectItem value="2">2nd Year</SelectItem>
-                <SelectItem value="3">3rd Year</SelectItem>
-                <SelectItem value="4">4th Year</SelectItem>
+                <SelectItem value="1st Year">1st Year</SelectItem>
+                <SelectItem value="2nd Year">2nd Year</SelectItem>
+                <SelectItem value="3rd Year">3rd Year</SelectItem>
+                <SelectItem value="4th Year">4th Year</SelectItem>
               </SelectContent>
             </Select>
           </div>
