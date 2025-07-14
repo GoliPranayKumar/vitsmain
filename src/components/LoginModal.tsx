@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, User, Lock, UserPlus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
@@ -22,6 +23,9 @@ interface LoginModalProps {
 const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [htNo, setHtNo] = useState('');
+  const [studentName, setStudentName] = useState('');
+  const [year, setYear] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -35,15 +39,31 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
 
     try {
       if (isSignUp) {
-        const result = await signUp(email, password, userType);
-        if (result.error) {
-          setError(result.error.message);
-          return;
+        if (userType === 'student') {
+          // For students, validate required fields and pass student data
+          if (!htNo || !studentName || !year || !email || !password) {
+            setError('All fields are required for student registration.');
+            setIsLoading(false);
+            return;
+          }
+          
+          const result = await signUp(email, password, userType, htNo, studentName, year);
+          if (result.error) {
+            setError(result.error.message);
+            return;
+          }
+        } else {
+          // For admin, use existing flow
+          const result = await signUp(email, password, userType);
+          if (result.error) {
+            setError(result.error.message);
+            return;
+          }
         }
 
         toast({
           title: 'Account Created',
-          description: userType === 'admin' ? 'Admin account created successfully.' : 'Student account created. Please complete your profile.',
+          description: userType === 'admin' ? 'Admin account created successfully.' : 'Student account created and sent for approval.',
         });
 
         resetForm();
@@ -63,6 +83,9 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
   const resetForm = () => {
     setEmail('');
     setPassword('');
+    setHtNo('');
+    setStudentName('');
+    setYear('');
     setError('');
     setIsSignUp(false);
     setShowPassword(false);
@@ -97,6 +120,56 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
           )}
 
           <div className="space-y-4">
+            {/* Student signup fields - show first for students */}
+            {isSignUp && userType === 'student' && (
+              <>
+                <div>
+                  <Label htmlFor="htNo">Hall Ticket Number (HT No.)</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="htNo"
+                      type="text"
+                      value={htNo}
+                      onChange={(e) => setHtNo(e.target.value)}
+                      placeholder="e.g., 23891A7228"
+                      autoComplete="off"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="studentName">Student Name</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="studentName"
+                      type="text"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      placeholder="Your full name"
+                      autoComplete="name"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="year">Year</Label>
+                  <Select value={year} onValueChange={setYear} required>
+                    <SelectTrigger id="year" aria-label="Select Year">
+                      <SelectValue placeholder="Select your year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1st Year">1st Year</SelectItem>
+                      <SelectItem value="2nd Year">2nd Year</SelectItem>
+                      <SelectItem value="3rd Year">3rd Year</SelectItem>
+                      <SelectItem value="4th Year">4th Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
             <div>
               <Label htmlFor="email">Email Address</Label>
               <div className="relative mt-1">
@@ -115,7 +188,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
             </div>
 
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{isSignUp ? 'Create Password' : 'Password'}</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -124,7 +197,7 @@ const LoginModal = ({ isOpen, onClose, userType }: LoginModalProps) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
-                  placeholder="Enter your password"
+                  placeholder={isSignUp ? 'Create a strong password' : 'Enter your password'}
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   required
                 />

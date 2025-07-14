@@ -29,7 +29,9 @@ interface AuthContextType {
     email: string,
     password: string,
     userType: 'student' | 'admin',
-    ht_no?: string
+    htNo?: string,
+    studentName?: string,
+    year?: string
   ) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   createProfile: (profileData: { ht_no: string; student_name: string; year: string }) => Promise<void>;
@@ -192,20 +194,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     userType: 'student' | 'admin',
-    ht_no?: string
+    htNo?: string,
+    studentName?: string,
+    year?: string
   ): Promise<{ error: any }> => {
     try {
       let verified: any = null;
 
       if (userType === 'student') {
+        // Verify student details match verified_students table
         const { data, error: verifyError } = await supabase
           .from('verified_students')
           .select('*')
-          .eq('ht_no', ht_no)
+          .ilike('ht_no', htNo?.trim() || '')
+          .ilike('student_name', studentName?.trim() || '')
+          .ilike('year', year?.trim() || '')
           .maybeSingle();
 
         if (verifyError || !data) {
-          return { error: { message: 'Hall ticket not found in verified students. Contact admin.' } };
+          return { error: { message: 'Student details not found in verified students list. Please check your information or contact admin.' } };
         }
 
         verified = data;
@@ -227,9 +234,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         if (userType === 'student') {
-          insertData.ht_no = ht_no;
-          insertData.student_name = verified?.student_name || email.split('@')[0];
-          insertData.year = verified?.year?.toString() || null;
+          insertData.ht_no = htNo;
+          insertData.student_name = studentName;
+          insertData.year = year;
         }
 
         const { error: insertError } = await supabase.from('user_profiles').insert(insertData);
@@ -240,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description:
             userType === 'admin'
               ? 'Admin account created successfully.'
-              : 'Account created. Please wait for admin approval.',
+              : 'Student account created and sent for admin approval.',
         });
       }
 
