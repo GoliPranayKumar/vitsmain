@@ -20,6 +20,7 @@ const AppRoutes: React.FC = () => {
     loading,
     needsProfileCreation,
     closeProfileCreationModal,
+    createProfile,
   } = useAuth();
 
   if (loading) {
@@ -54,6 +55,7 @@ const AppRoutes: React.FC = () => {
           onOpenChange={(open) => {
             if (!open) closeProfileCreationModal();
           }}
+          onSubmit={createProfile}
         />
       )}
     </>

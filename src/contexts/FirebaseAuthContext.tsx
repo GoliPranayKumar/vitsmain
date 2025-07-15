@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/integrations/firebase/config';
-import { signUpUser, signInUser, signOutUser, getUserProfile, UserProfile } from '@/integrations/firebase/auth';
+import { signUpUser, signInUser, signOutUser, getUserProfile, UserProfile, updateUserProfile } from '@/integrations/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 
@@ -23,6 +23,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   createProfile: (profileData: { ht_no: string; student_name: string; year: string }) => Promise<void>;
   closeProfileCreationModal: () => void;
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,10 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
             id: firebaseUser.uid,
             role: 'admin',
             status: 'approved',
-            email: firebaseUser.email
+            email: firebaseUser.email,
+            student_name: null,
+            ht_no: null,
+            year: null
           });
           
           profile = await loadUserProfile(firebaseUser.uid);
@@ -152,11 +156,6 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     year?: string
   ): Promise<{ error: any }> => {
     try {
-      if (userType === 'student') {
-        // Check if student is verified (you'll need to implement this check)
-        // For now, we'll skip the verification check
-      }
-
       const { user: firebaseUser, error } = await signUpUser(email, password, userType, {
         htNo,
         studentName,
@@ -205,6 +204,16 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
   };
 
+  const updateProfile = async (data: Partial<UserProfile>) => {
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await updateUserProfile(user.uid, data);
+    if (error) throw error;
+
+    const updatedProfile = await loadUserProfile(user.uid);
+    setUserProfile(updatedProfile);
+  };
+
   const closeProfileCreationModal = () => {
     setNeedsProfileCreation(false);
   };
@@ -230,6 +239,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         logout,
         createProfile,
         closeProfileCreationModal,
+        updateProfile,
       }}
     >
       {children}

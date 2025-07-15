@@ -23,11 +23,13 @@ import { useToast } from '@/hooks/use-toast';
 interface ProfileCreationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSubmit: (data: { ht_no: string; student_name: string; year: string }) => Promise<void>;
 }
 
 const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
   open,
   onOpenChange,
+  onSubmit,
 }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -53,36 +55,47 @@ const ProfileCreationModal: React.FC<ProfileCreationModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 1. Check if in verified_students with case-insensitive and trimmed comparison
+      // Check if student is verified in Firebase
       console.log('Checking verification for:', { ht_no: ht_no.trim(), student_name: student_name.trim(), year: year.trim() });
       
-      // For Firebase, you'll need to implement your own verification logic
-      // This is a placeholder - implement according to your verification system
-      const verified = true; // Replace with actual verification logic
-
-      console.log('Verification result:', { verified });
-
-      if (!verified) {
-        console.error('Verification failed');
+      const verifiedStudentDoc = await getDoc(doc(db, 'verified_students', ht_no.trim()));
+      
+      if (!verifiedStudentDoc.exists()) {
+        console.error('Student not found in verified_students');
         toast({
           title: 'Verification Failed',
-          description: 'You are not listed in verified students.',
+          description: 'You are not listed in verified students. Please contact admin.',
           variant: 'destructive',
         });
         setIsSubmitting(false);
         return;
       }
 
-      // Use the createProfile function from auth context
-      // This will be handled by the parent component
+      const verifiedData = verifiedStudentDoc.data();
+      console.log('Verification result:', { verifiedData });
 
-      toast({
-        title: 'Profile Submitted',
-        description: 'Your profile is pending admin approval.',
+      // Check if the details match
+      if (verifiedData.student_name?.toLowerCase().trim() !== student_name.toLowerCase().trim() ||
+          verifiedData.year?.trim() !== year.trim()) {
+        console.error('Verification failed - details do not match');
+        toast({
+          title: 'Verification Failed',
+          description: 'Your details do not match our records. Please verify your information.',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Call the onSubmit function passed from parent
+      await onSubmit({
+        ht_no: ht_no.trim(),
+        student_name: student_name.trim(),
+        year: year.trim()
       });
 
       setFormData({ ht_no: '', student_name: '', year: '' });
-      onOpenChange(false); // close modal
+      onOpenChange(false);
     } catch (error: any) {
       toast({
         title: 'Error',

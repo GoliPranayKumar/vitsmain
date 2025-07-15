@@ -10,7 +10,8 @@ import {
   where, 
   orderBy,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -24,6 +25,18 @@ export const addDocument = async (collectionName: string, data: any) => {
     return { id: docRef.id, error: null };
   } catch (error) {
     return { id: null, error };
+  }
+};
+
+export const setDocument = async (collectionName: string, docId: string, data: any) => {
+  try {
+    await setDoc(doc(db, collectionName, docId), {
+      ...data,
+      created_at: Timestamp.now()
+    });
+    return { error: null };
+  } catch (error) {
+    return { error };
   }
 };
 
@@ -125,4 +138,20 @@ export const getPlacements = async () => {
 
 export const getGallery = async () => {
   return getDocuments('gallery', [orderBy('created_at', 'desc')]);
+};
+
+export const getVerifiedStudents = async () => {
+  return getDocuments('verified_students');
+};
+
+export const getUserProfiles = async () => {
+  return getDocuments('user_profiles');
+};
+
+export const getAttendance = async (htno: string) => {
+  return getDocuments('attendance', [where('ht_no', '==', htno)]);
+};
+
+export const getResults = async (htno: string) => {
+  return getDocuments('results', [where('ht_no', '==', htno)]);
 };

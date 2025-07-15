@@ -65,3 +65,15 @@ export const uploadCertificate = async (htno: string, fileName: string, file: Fi
 export const deleteCertificate = async (htno: string, fileName: string) => {
   return deleteFile(`certifications/${htno}/${fileName}`);
 };
+
+export const uploadResult = async (htno: string, fileName: string, file: File) => {
+  return uploadFile(`results/${htno}/${fileName}`, file);
+};
+
+export const uploadEventImage = async (eventId: string, file: File) => {
+  return uploadFile(`events/${eventId}/image.jpg`, file);
+};
+
+export const uploadGalleryItem = async (fileName: string, file: File) => {
+  return uploadFile(`gallery/${fileName}`, file);
+};

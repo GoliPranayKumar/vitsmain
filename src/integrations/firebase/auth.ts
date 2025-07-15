@@ -36,6 +36,26 @@ export const signUpUser = async (
   }
 ): Promise<{ user: User | null; error: any }> => {
   try {
+    // Check if student is verified (for student registrations)
+    if (userType === 'student' && additionalData) {
+      const verifiedStudentDoc = await getDoc(doc(db, 'verified_students', additionalData.htNo || ''));
+      if (!verifiedStudentDoc.exists()) {
+        return { 
+          user: null, 
+          error: { message: 'Student details not found in verified students list. Please check your information or contact admin.' }
+        };
+      }
+      
+      const verifiedData = verifiedStudentDoc.data();
+      if (verifiedData.student_name?.toLowerCase() !== additionalData.studentName?.toLowerCase() ||
+          verifiedData.year !== additionalData.year) {
+        return { 
+          user: null, 
+          error: { message: 'Student details do not match our records. Please verify your information.' }
+        };
+      }
+    }
+
     const userCredential: UserCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
@@ -92,5 +112,15 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   } catch (error) {
     console.error('Error getting user profile:', error);
     return null;
+  }
+};
+
+export const updateUserProfile = async (userId: string, data: Partial<UserProfile>) => {
+  try {
+    const docRef = doc(db, 'user_profiles', userId);
+    await setDoc(docRef, data, { merge: true });
+    return { error: null };
+  } catch (error) {
+    return { error };
   }
 };
