@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { FirebaseAuthProvider, useAuth } from '@/contexts/FirebaseAuthContext';
 import ProfileCreationModal from '@/components/ProfileCreationModal';
 import Index from './pages/Index';
 import AdminDashboard from './pages/AdminDashboard';
@@ -64,11 +64,11 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
+        <FirebaseAuthProvider>
           <AppRoutes />
           <Toaster />
           <Sonner />
-        </AuthProvider>
+        </FirebaseAuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

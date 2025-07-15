@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, User, Lock, UserPlus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/FirebaseAuthContext';
 import { toast } from '@/components/ui/use-toast';
 
 interface LoginModalProps {
